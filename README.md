@@ -13,7 +13,7 @@ A first-person cleanup-and-combat game that runs in the browser. Halvorsen Biowo
 
 **Online:** https://grime-protocol.johndean-pheakos.workers.dev
 
-**Offline:** just open `index.html` in Chrome, Edge or Firefox.** The game is pre-built into `dist/game.js`, so it needs no install and no server.
+**Offline:** just open `index.html` in Chrome, Edge or Firefox. The game is pre-built into `dist/game.js`, so it needs no install and no server.
 
 Click **New Contract**, then click the screen to capture the mouse.
 
