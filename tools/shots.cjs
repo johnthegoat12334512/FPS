@@ -67,6 +67,10 @@ const out = process.argv[2] || 'screenshots/tmp'; fs.mkdirSync(out, { recursive:
     const b = g.enemies.spawn('bloater', x + 6, z, true); g.enemies.spawn('sludger', x + 7, z + 1, true); g.enemies.spawn('sludger', x + 7.5, z - 1, true);
     for (let k = 0; k < 10; k++) { P.yaw = -Math.PI / 2; g.step(1 / 60); }
     g.enemies.damage(b, 9999, { kind: 'bullet' }); for (let k = 0; k < 8; k++) g.step(1 / 60); };
+  scen.enraged = () => { const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999;
+    for (let p = 2; p <= 4; p++) g.level.openDoor(p, true); g.phase = 4; g.enemies.createBoss(); g.enemies.awakenBoss();
+    const b = g.enemies.boss; b.hp = b.maxHp * 0.45; P.spawnAt(b.x + 3, b.z + 12, 0.25); P.pitch = 0.0; b.summonT = 99; b.volleyT = 99;
+    for (let k = 0; k < 162; k++) g.step(1 / 60); };
   const which = (process.argv[3] || Object.keys(scen).join(',')).split(',');
   for (const n of which) {
     await page.evaluate(`(${scen[n].toString()})()`);

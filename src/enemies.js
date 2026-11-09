@@ -348,6 +348,7 @@ export class Enemies {
     this.updateProjectiles(dt);
     this.updatePickups(dt);
     if (this.boss) this.updateBoss(dt);
+    this.updateWaves(dt);
   }
 
   spit(e, target) {
@@ -598,7 +599,7 @@ export class Enemies {
     for (let i = 0; i < 6; i++) { const eye = new THREE.Mesh(this.geo.eye, new THREE.MeshBasicMaterial({ color: 0xffe23a })); const a = i / 6 * Math.PI * 2; eye.scale.setScalar(0.18); eye.position.set(Math.cos(a) * 1.75, 2.4 + Math.sin(i) * 0.4, Math.sin(a) * 1.75); grp.add(eye); }
     g.scene.add(grp);
     const hp = 9000 * (g.difficulty || 1);
-    this.boss = { x: bx, z: bz, grp, core, shell, coreMat, shellMat, tentacles, hp, maxHp: hp, shield: 800, maxShield: 800, active: false, alive: true, volleyT: 4, summonT: 10, slamT: 3, lastWash: -10, flash: 0, r: 2.4 };
+    this.boss = { x: bx, z: bz, grp, core, shell, coreMat, shellMat, tentacles, hp, maxHp: hp, shield: 800, maxShield: 800, active: false, alive: true, phase2: false, volleyT: 4, summonT: 10, slamT: 3, lastWash: -10, flash: 0, r: 2.4 };
     grp.scale.setScalar(0.6);
   }
   awakenBoss() {
@@ -674,6 +675,25 @@ export class Enemies {
     b.tentacles.forEach((tp, i) => { tp.rotation.z = Math.sin(t * 1.5 + i) * 0.5 - 0.3; tp.rotation.x = Math.cos(t * 1.2 + i * 2) * 0.3; });
     if (b.flash > 0) { b.flash -= dt; b.coreMat.emissive.setHex(b.flash > 0 ? 0xaa3a7a : 0x3a0a2a); }
     if (!b.active) return;
+    // ---- enrage (phase 2) below half health
+    if (!b.phase2 && b.hp < b.maxHp * 0.5) {
+      b.phase2 = true; b.shield = b.maxShield; b.waveT = 2;
+      b.coreMat.color.setHex(0xc02a2a); b.shellMat.color.setHex(0xff6a3a); b.shellMat.emissive.setHex(0x7a1a0a);
+      g.ui.banner('THE BLOOM MOTHER IS ENRAGED', 'Jump over the shockwaves!', 4, '#ff5a3a');
+      g.audio.boss(); g.effects.explosion(b.x, 2.2, b.z, 5, 'goo');
+    }
+    if (b.phase2) {
+      b.waveT -= dt;
+      if (b.waveT <= 0) {
+        b.waveT = 4.2 - (1 - b.hp / b.maxHp) * 1.5;
+        const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.6, 0.3), transparent: true, opacity: 0.75, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+        const mesh = new THREE.Mesh(this.waveGeo ||= new THREE.CylinderGeometry(1, 1, 0.45, 72, 1, true), mat);
+        mesh.position.set(b.x, 0.22, b.z);
+        g.scene.add(mesh);
+        (this.waves ||= []).push({ mesh, r: 2.6, hit: false });
+        g.audio.boom(); g.shake = Math.max(g.shake, 0.25);
+      }
+    }
     // shield regen
     if (t - b.lastWash > 6 && b.shield < b.maxShield) b.shield = Math.min(b.maxShield, b.shield + 60 * dt);
     const dist = Math.hypot(P.pos.x - b.x, P.pos.z - b.z);
@@ -709,6 +729,22 @@ export class Enemies {
         const k = 12;
         P.vel.x += (P.pos.x - b.x) / (dist || 1) * k; P.vel.z += (P.pos.z - b.z) / (dist || 1) * k; P.vel.y = 5; P.onGround = false;
       }
+    }
+  }
+
+  updateWaves(dt) {
+    if (!this.waves) return;
+    const g = this.game, P = g.player;
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      const w = this.waves[i];
+      w.r += 9 * dt;
+      w.mesh.scale.set(w.r, 1, w.r);
+      w.mesh.material.opacity = Math.max(0, 0.75 * (1 - w.r / 32));
+      const b = this.boss;
+      const d = Math.hypot(P.pos.x - (b ? b.x : 0), P.pos.z - (b ? b.z : 0));
+      if (!w.hit && Math.abs(d - w.r) < 0.55 && P.pos.y < 0.35 && g.state === 'playing') { w.hit = true; P.damage(26, { x: b.x, z: b.z }); P.vel.y = 4; P.onGround = false; }
+      if (Math.random() < 0.5) { const a = Math.random() * Math.PI * 2; g.particles.add.spawn(b.x + Math.cos(a) * w.r, 0.15, b.z + Math.sin(a) * w.r, 0, 1.5, 0, 0.35, 0.12, 1, 0.4, 0.2, 0.9, 0, 0, 1); }
+      if (w.r > 32 || !b || !b.alive) { g.scene.remove(w.mesh); w.mesh.material.dispose(); this.waves.splice(i, 1); }
     }
   }
 

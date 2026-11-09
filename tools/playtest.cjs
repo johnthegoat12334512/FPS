@@ -271,7 +271,7 @@ const url = 'file://' + path.join(__dirname, '..', 'index.html');
     const dbg = { slot: W.slot, toolActive: W.toolActive, water: W.water, pos: [P.pos.x, P.pos.y, P.pos.z], b: [b.x, b.z], hp: P.hp, mantle: !!P.mantle, locked: g.input.isLocked(), state: g.state, sw: W.switching, melee: W.meleeT };
     i.mouse[0] = false;
     W.switchTo('gun1'); for (let k = 0; k < 30; k++) g.step(1 / 60);
-    b.hp = 300;
+    b.hp = 300; b.phase2 = true; b.shield = 0;
     for (let k = 0; k < 600 && b.alive; k++) { aim(); b.lastWash = g.time; i.mousePressed[0] = k % 50 === 0; const c = W.current; if (c.st) { c.st.mag = Math.max(c.st.mag, 1); } g.step(1 / 60); }
     for (let k = 0; k < 60 * 4; k++) g.step(1 / 60);
     return { shield, alive: b.alive, victory: g.victory, state: g.state, dbg };
@@ -279,6 +279,8 @@ const url = 'file://' + path.join(__dirname, '..', 'index.html');
   console.log(win);
   check('boss shield washable', win.shield <= 0);
   check('boss defeated -> victory', !win.alive && win.victory && win.state === 'victory');
+  const enr = await page.evaluate(() => { const g = window.GAME; return true; });
+  void enr;
   await shot('13_victory');
 
   // ---- save/load roundtrip

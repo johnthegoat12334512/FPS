@@ -183,7 +183,7 @@ export class UI {
     } else if (g.bossActive()) {
       const b = g.enemies.boss;
       this.el.objTitle.textContent = 'The Bloom Mother';
-      this.el.objBrief.textContent = b.shield > 0 ? 'Its slime shield deflects bullets — WASH it off with the Hydro Lance (or torch / foam), then shoot!' : 'Shield down! Unload on the core!';
+      this.el.objBrief.textContent = (b.phase2 ? 'ENRAGED — jump over the shockwaves! ' : '') + (b.shield > 0 ? 'Its slime shield deflects bullets — WASH it off with the Hydro Lance (or torch / foam), then shoot!' : 'Shield down! Unload on the core!');
     } else if (PHASES[phase]) {
       this.el.objTitle.textContent = PHASES[phase].title.split('— ')[1] || PHASES[phase].title;
       this.el.objBrief.textContent = PHASES[phase].brief;
