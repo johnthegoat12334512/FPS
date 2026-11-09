@@ -73,6 +73,20 @@ export class Enemies {
         (parts.arms ||= []).push(arm);
       }
       for (const s of [-1, 1]) { const e = new THREE.Mesh(this.geo.eye, eyeMat); e.scale.setScalar(0.07); e.position.set(s * 0.13, 2.3, 0.55); g.add(e); }
+    } else if (type === 'bloater') {
+      body.scale.set(0.78, 0.72, 0.74); body.position.y = 0.92;
+      const head = new THREE.Mesh(this.geo.body, mat); head.scale.set(0.24, 0.22, 0.24); head.position.set(0, 1.68, 0.18); g.add(head);
+      parts.head = head;
+      for (const sx of [-1, 1]) { const e = new THREE.Mesh(this.geo.eye, eyeMat); e.scale.setScalar(0.05); e.position.set(sx * 0.09, 1.72, 0.4); g.add(e); }
+      const pusMat = this.pusMat ||= new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 2.4, 0.4) });
+      parts.pus = [];
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4, el = (Math.sin(i * 1.7)) * 0.6;
+        const pu = new THREE.Mesh(this.geo.body, pusMat); pu.scale.setScalar(0.07 + (i % 3) * 0.025);
+        pu.position.set(Math.cos(a) * Math.cos(el) * 0.74, 0.92 + Math.sin(el) * 0.66, Math.sin(a) * Math.cos(el) * 0.7);
+        g.add(pu); parts.pus.push(pu);
+      }
+      for (const sx of [-1, 1]) { const arm = new THREE.Mesh(this.geo.arm, mat); arm.scale.set(0.14, 0.6, 0.14); arm.position.set(sx * 0.72, 0.7, 0.15); arm.rotation.z = sx * 0.5; g.add(arm); (parts.arms ||= []).push(arm); }
     } else if (type === 'spitter') {
       body.scale.set(0.4, 0.75, 0.4); body.position.y = 0.95;
       const sac = new THREE.Mesh(this.geo.body, new THREE.MeshStandardMaterial({ color: 0x9cff6a, emissive: 0x4aaa10, emissiveIntensity: 1.3, roughness: 0.15, transparent: true, opacity: 0.9 })); sac.scale.set(0.32, 0.28, 0.32); sac.position.set(0, 1.55, -0.12); g.add(sac);
@@ -93,7 +107,7 @@ export class Enemies {
     g.add(body);
     parts.body = body;
     this.addDetails(type, g, mat, parts);
-    mergeStatic(g, [body, parts.head, parts.sac, ...(parts.arms || [])].filter(Boolean));
+    mergeStatic(g, [body, parts.head, parts.sac, ...(parts.arms || []), ...(parts.pus || [])].filter(Boolean));
     void H;
     return { g, parts };
   }
@@ -265,8 +279,19 @@ export class Enemies {
         }
       }
 
+      if (e.d.exploder) {
+        if (e.fuse === undefined && dist < 2.4 && Math.abs(dy) < 2) { e.fuse = 0.75; g.audio.growl(); }
+        if (e.fuse !== undefined) {
+          e.fuse -= dt; speed *= 0.3;
+          const k = 1 + (0.75 - e.fuse) * 0.35;
+          e.parts.body.scale.set(0.78 * k, 0.72 * k, 0.74 * k);
+          e.parts.mat.emissive.setHex(Math.sin(e.fuse * 40) > 0 ? 0x557a10 : 0x000000);
+          if (e.fuse <= 0) { this.kill(e, { kind: 'self' }); continue; }
+        }
+        if (e.parts.pus) e.parts.pus.forEach((p, k) => p.scale.setScalar((0.07 + (k % 3) * 0.025) * (1 + Math.sin(e.anim * 6 + k) * 0.2)));
+      }
       // melee attack
-      const reach = e.d.radius + 0.95;
+      const reach = e.d.exploder ? -1 : e.d.radius + 0.95;
       if (e.type !== 'spitter' || dist < reach) {
         e.attackCd -= e.type === 'spitter' ? 0 : dt;
         if (e.windup > 0) {
@@ -312,6 +337,7 @@ export class Enemies {
         e.yaw += clamp(da, -8 * dt, 8 * dt);
       }
       e.mesh.rotation.y = e.yaw;
+      if (e.flinch > 0) { e.flinch -= dt; e.mesh.rotation.x = -Math.sin(e.flinch / 0.12 * Math.PI) * 0.18; } else e.mesh.rotation.x = 0;
       const wob = Math.sin(e.anim * (e.charge > 0 ? 18 : 9)) * 0.08;
       e.parts.body.rotation.z = wob;
       if (e.parts.arms) e.parts.arms.forEach((a, k) => { a.rotation.x = (e.type === 'sludger' ? -1.1 : 0) + Math.sin(e.anim * 9 + k * Math.PI) * 0.4 - (e.windup > 0 ? 0.9 : 0); });
@@ -456,6 +482,8 @@ export class Enemies {
       }
     } else {
       const pt = info.point || new THREE.Vector3(e.pos.x, e.pos.y + e.d.height * 0.7, e.pos.z);
+      if (info.dir) { const kb = Math.min(3, dmg / e.maxHp * 12) * (e.type === 'brute' ? 0.3 : 1); e.knock.x += info.dir.x * kb; e.knock.z += info.dir.z * kb; }
+      e.flinch = 0.12;
       g.ui.damageNumber(pt.x, pt.y + 0.2, pt.z, dmg, info.head ? 'head' : info.kind === 'melee' ? 'melee' : e.hp <= 0 ? 'kill' : 'normal');
       e.flash = 0.08; e.parts.mat.emissive.setHex(0x884444);
       if (info.point) g.particles.goo(info.point.x, info.point.y, info.point.z, e.d.color, info.head ? 10 : 5, 3);
@@ -472,6 +500,18 @@ export class Enemies {
     const g = this.game;
     e.hp = 0;
     e.dying = 0.6;
+    if (e.d.exploder && !e.exploded) {
+      e.exploded = true; e.dying = 0.05; e.mesh.visible = false;
+      g.audio.boom();
+      g.effects.explosion(e.pos.x, e.pos.y + 0.9, e.pos.z, 3.6, 'goo');
+      const P = g.player, pd = Math.hypot(P.pos.x - e.pos.x, P.pos.z - e.pos.z);
+      if (pd < 3.6 && g.state === 'playing') P.damage(Math.round(e.d.dmg * (1 + 0.25 * (g.phase - 1)) * (1 - pd / 3.6 * 0.6)), e.pos);
+      this.radiusDamage(e.pos.x, e.pos.y + 0.8, e.pos.z, 4, 260 * (1 + 0.5 * (g.phase - 1)));
+      const zk0 = g.level.zoneAtWorld(e.pos.x, e.pos.z);
+      if (zk0 && zk0 !== 'h') g.grime.addGooStain(zk0, e.pos.x, e.pos.z, 2.6);
+      for (const b of g.barrels.list) if (b.alive && Math.hypot(b.x - e.pos.x, b.z - e.pos.z) < 3.5) g.barrels.damage(b, 999);
+      if (info.kind === 'self') return; // blew itself up: no reward
+    }
     g.stats.kills++;
     const reward = info.kind === 'melee' ? ECON.meleeKill : info.head ? ECON.headKill : ECON.kill;
     g.addCredits(reward + (e.d.reward - 60), null, false, info.kind === 'melee' ? 'MELEE KILL' : info.head ? 'HEADSHOT' : null);

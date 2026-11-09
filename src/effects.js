@@ -70,9 +70,9 @@ export class Effects {
   // Big explosion: fire (barrels, boss) or foam (grenade)
   explosion(x, y, z, radius = 4, kind = 'fire') {
     const g = this.game;
-    const foam = kind === 'foam';
+    const foam = kind === 'foam', goo = kind === 'goo';
     const tex = foam ? this.foamTex : this.fireTex;
-    const col = foam ? new THREE.Color(1.6, 1.9, 2.2) : new THREE.Color(2.4, 1.8, 1.3);
+    const col = foam ? new THREE.Color(1.6, 1.9, 2.2) : goo ? new THREE.Color(1.2, 2.6, 0.5) : new THREE.Color(2.4, 1.8, 1.3);
     this.sprite(tex, x, y, z, radius * 0.3, radius * 1.3, 0.45, { additive: true, color: col, spin: 2 });
     for (let i = 0; i < 6; i++) {
       const a = Math.random() * 6.28, d = Math.random() * radius * 0.35;
@@ -82,22 +82,23 @@ export class Effects {
     for (let i = 0; i < (foam ? 10 : 8); i++) {
       const a = Math.random() * 6.28, d = Math.random() * radius * 0.4;
       this.sprite(foam ? this.foamTex : this.smokeTex, x + Math.cos(a) * d, y + 0.3, z + Math.sin(a) * d, radius * 0.4, radius * (0.9 + Math.random() * 0.5), 1.6 + Math.random() * 1.0,
-        { color: foam ? 0xe8f6ff : 0x555555, alpha: foam ? 0.7 : 0.75, vy: 0.7 + Math.random() * 0.8, vx: Math.cos(a) * 0.8, vz: Math.sin(a) * 0.8, spin: 0.6 });
+        { color: foam ? 0xe8f6ff : goo ? 0x4a6a2a : 0x555555, alpha: foam ? 0.7 : 0.75, vy: 0.7 + Math.random() * 0.8, vx: Math.cos(a) * 0.8, vz: Math.sin(a) * 0.8, spin: 0.6 });
     }
     // shockwave ring
-    const rm = new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: foam ? new THREE.Color(1, 2, 2.5) : new THREE.Color(2.5, 1.6, 0.9), side: THREE.DoubleSide });
+    const rm = new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: foam ? new THREE.Color(1, 2, 2.5) : goo ? new THREE.Color(1, 2.5, 0.6) : new THREE.Color(2.5, 1.6, 0.9), side: THREE.DoubleSide });
     const ring = new THREE.Mesh(this.ringGeo, rm);
     ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.08, z);
     this.scene.add(ring);
     this.rings.push({ m: ring, t: 0.5, max: 0.5, r: radius * 2.4 });
     // light flash
     const l = this.lights[this.lightI++ % this.lights.length];
-    l.position.set(x, y + 0.8, z); l.color.set(foam ? 0x8ad8ff : 0xff8a3a); l.intensity = 120; l.userData.decay = 300;
+    l.position.set(x, y + 0.8, z); l.color.set(foam ? 0x8ad8ff : goo ? 0x8aff3a : 0xff8a3a); l.intensity = 120; l.userData.decay = 300;
     // particles
-    g.particles.burst(x, y, z, foam ? 0xdff6ff : 0xffb040, 70, radius * 2.2, 0.12);
-    if (!foam) for (let i = 0; i < 18; i++) g.particles.norm.spawn(x, y, z, (Math.random() - 0.5) * 12, 3 + Math.random() * 8, (Math.random() - 0.5) * 12, 1.2, 0.09, 0.15, 0.12, 0.1, 1, 16, 0.5);
+    g.particles.burst(x, y, z, foam ? 0xdff6ff : goo ? 0x9cff4a : 0xffb040, 70, radius * 2.2, 0.12);
+    if (goo) g.particles.goo(x, y, z, 0x8aa830, 50, 9);
+    if (!foam && !goo) for (let i = 0; i < 18; i++) g.particles.norm.spawn(x, y, z, (Math.random() - 0.5) * 12, 3 + Math.random() * 8, (Math.random() - 0.5) * 12, 1.2, 0.09, 0.15, 0.12, 0.1, 1, 16, 0.5);
     // scorch / foam mark on floor
-    if (y < 1.5) {
+    if (y < 1.5 && !goo) {
       let sc;
       if (this.scorches.length >= 24) sc = this.scorches.shift();
       else { sc = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ map: this.scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); sc.rotation.x = -Math.PI / 2; this.scene.add(sc); }

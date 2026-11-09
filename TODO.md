@@ -38,7 +38,10 @@
 
 ## Not done / ideas for later
 - [ ] Multiplayer co-op (paused at your request) + hosting it on a free server
-- [ ] Gamepad support
-- [ ] More enemy variety (an exploding bloater?) and a second boss phase
+- [x] Gamepad support (standard Xbox/PlayStation layout)
+- [x] New enemy: Bloater (explodes, chain-damages enemies, sets off barrels, re-dirties floor)
+- [x] Enemies flinch/knock back when hit
+- [x] 'Click to resume' hint if the mouse isn't captured
+- [ ] A second boss phase
 - [ ] Real recorded audio instead of synthesized sound effects
 - [ ] Settings for keybinds

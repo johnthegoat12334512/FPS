@@ -50,15 +50,16 @@ export const PERKS = {
 export const ENEMIES = {
   sludger: { name: 'Sludger', hp: 110, speed: 4.3, dmg: 22, rate: 1.0, radius: 0.45, height: 1.7, reward: 60, color: 0x4f7a2a, eye: 0xffd21f },
   spitter: { name: 'Spitter', hp: 90, speed: 3.6, dmg: 14, rate: 2.2, radius: 0.42, height: 1.9, reward: 80, color: 0x7a3a8c, eye: 0x6effa0, ranged: true },
+  bloater: { name: 'Bloater', hp: 150, speed: 2.7, dmg: 38, rate: 1.0, radius: 0.7, height: 1.8, reward: 90, color: 0x8aa830, eye: 0xffee55, exploder: true },
   brute: { name: 'Brute', hp: 650, speed: 3.0, dmg: 45, rate: 1.5, radius: 0.8, height: 2.5, reward: 200, color: 0x5c3a22, eye: 0xff3a1f },
 };
 
 export const PHASES = [
   null,
   { zone: 'a', title: 'Phase 1 — Loading Bay', brief: 'Vacuum the debris and clear the Loading Bay. Empty your tank at a Disposal Chute.', threshold: 0.8, mix: { sludger: 1 }, maxAlive: 8, interval: 4.2, hpMul: 1.0, bonus: 1000 },
-  { zone: 'b', title: 'Phase 2 — Admin Offices', brief: 'The offices are caked in sludge. Get a Hydro Lance from the terminal and wash it all away.', threshold: 0.8, mix: { sludger: 0.75, spitter: 0.25 }, maxAlive: 11, interval: 3.5, hpMul: 1.45, bonus: 2000 },
-  { zone: 'c', title: 'Phase 3 — Hydroponics', brief: 'Spore pods are everywhere. Buy the Spore Torch and burn them out.', threshold: 0.8, mix: { sludger: 0.6, spitter: 0.25, brute: 0.15 }, maxAlive: 14, interval: 2.9, hpMul: 2.0, bonus: 3000 },
-  { zone: 'd', title: 'Phase 4 — Reactor Core', brief: 'Purge the Reactor Core. Something is growing in the middle of it...', threshold: 0.8, mix: { sludger: 0.5, spitter: 0.3, brute: 0.2 }, maxAlive: 16, interval: 2.4, hpMul: 2.7, bonus: 5000 },
+  { zone: 'b', title: 'Phase 2 — Admin Offices', brief: 'The offices are caked in sludge. Get a Hydro Lance from the terminal and wash it all away.', threshold: 0.8, mix: { sludger: 0.68, spitter: 0.22, bloater: 0.1 }, maxAlive: 11, interval: 3.5, hpMul: 1.45, bonus: 2000 },
+  { zone: 'c', title: 'Phase 3 — Hydroponics', brief: 'Spore pods are everywhere. Buy the Spore Torch and burn them out.', threshold: 0.8, mix: { sludger: 0.52, spitter: 0.22, bloater: 0.11, brute: 0.15 }, maxAlive: 14, interval: 2.9, hpMul: 2.0, bonus: 3000 },
+  { zone: 'd', title: 'Phase 4 — Reactor Core', brief: 'Purge the Reactor Core. Something is growing in the middle of it...', threshold: 0.8, mix: { sludger: 0.42, spitter: 0.26, bloater: 0.12, brute: 0.2 }, maxAlive: 16, interval: 2.4, hpMul: 2.7, bonus: 5000 },
 ];
 
 export const ECON = {

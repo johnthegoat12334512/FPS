@@ -74,6 +74,7 @@ class Game {
 
     window.addEventListener('resize', () => this.resize());
     this.resize();
+    this.input.onPadPause = () => { if (this.state === 'playing') this.pause(); else if (this.state === 'paused') this.resume(); };
     this.input.onLockChange = (locked) => {
       if (!locked && this.state === 'playing' && !this.input.forceLocked) this.pause();
     };
@@ -512,6 +513,7 @@ class Game {
   // ---------------------------------------------------------------- loop
   step(dt) {
     this.time += dt;
+    if (this.state === 'playing' || this.state === 'paused') this.input.pollGamepad(dt);
     const playing = this.state === 'playing';
     const active = playing && this.input.isLocked();
     if (playing) {

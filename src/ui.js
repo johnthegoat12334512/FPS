@@ -94,6 +94,8 @@ export class UI {
     this.hitT -= dt; this.hurtT -= dt; this.flashT -= dt; this.bannerT -= dt;
     this.el.hitmarker.style.opacity = this.hitT > 0 ? 1 : 0;
     this.updateDamageNumbers(dt);
+    const needClick = g.state === 'playing' && !g.input.isLocked();
+    if (needClick !== this._needClick) { this._needClick = needClick; document.getElementById('clickHint').classList.toggle('hidden', !needClick); }
     this.el.flash.style.opacity = this.flashT > 0 ? 1 : 0;
     this.el.banner.style.opacity = this.bannerT > 0 ? 1 : 0;
     const lowHp = 1 - P.hp / P.maxHp;

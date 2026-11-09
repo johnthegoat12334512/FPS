@@ -60,9 +60,13 @@ const out = process.argv[2] || 'screenshots/tmp'; fs.mkdirSync(out, { recursive:
     const a = g.enemies.spawn('sludger', x + 3.2, z - 1.2, true), b = g.enemies.spawn('spitter', x + 4, z + 1.0, true), c = g.enemies.spawn('brute', x + 6, z, true);
     for (const e of [a, b, c]) { e.speedMul = 0; e.attackCd = 99; }
     for (let k = 0; k < 30; k++) { P.yaw = -Math.PI / 2; g.step(1 / 60); } };
-  for (const t of ['sludger', 'spitter', 'brute']) scen['only_' + t] = new Function(`const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(27, 28); P.spawnAt(x, z, -Math.PI / 2); P.pitch = 0.08;
+  for (const t of ['sludger', 'spitter', 'brute', 'bloater']) scen['only_' + t] = new Function(`const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(27, 28); P.spawnAt(x, z, -Math.PI / 2); P.pitch = 0.08;
     const a = g.enemies.spawn('${t}', x + 4, z, true); a.speedMul = 0; a.attackCd = 99;
     for (let k = 0; k < 30; k++) { P.yaw = -Math.PI / 2; g.step(1 / 60); }`);
+  scen.bloater_pop = () => { const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(27, 28); P.spawnAt(x, z, -Math.PI / 2); P.pitch = 0.05;
+    const b = g.enemies.spawn('bloater', x + 6, z, true); g.enemies.spawn('sludger', x + 7, z + 1, true); g.enemies.spawn('sludger', x + 7.5, z - 1, true);
+    for (let k = 0; k < 10; k++) { P.yaw = -Math.PI / 2; g.step(1 / 60); }
+    g.enemies.damage(b, 9999, { kind: 'bullet' }); for (let k = 0; k < 8; k++) g.step(1 / 60); };
   const which = (process.argv[3] || Object.keys(scen).join(',')).split(',');
   for (const n of which) {
     await page.evaluate(`(${scen[n].toString()})()`);

@@ -104,6 +104,8 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #slots { display: flex; justify-content: flex-end; gap: 3px; flex-wrap: wrap; }
 #slots div { font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: var(--dim); letter-spacing: 0.5px; }
 #slots div.on { border-color: var(--gold); color: var(--gold); background: rgba(255,204,77,0.08); }
+#clickHint { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); padding: 10px 22px; border-radius: 8px; background: rgba(12,16,22,0.8); border: 1px solid var(--cyan); font-size: 16px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.6; } }
 #fps { position: absolute; right: 204px; top: 16px; font-size: 11px; color: var(--dim); }
 
 /* screens */
