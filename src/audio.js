@@ -123,5 +123,52 @@ export class Audio {
     this.windNode.g.gain.setTargetAtTime(0.015 + gust * 0.09, t, 0.3);
     this.windNode.f.frequency.setTargetAtTime(300 + gust * 500, t, 0.3);
   }
+  // Procedural score: an ambient drone + a pulsing combat layer driven by `intensity` (0..1)
+  music(intensity, dt) {
+    if (!this.ctx) return;
+    const c = this.ctx;
+    if (!this.mus) {
+      const out = c.createGain(); out.gain.value = this.musicVol ?? 0.5; out.connect(this.master);
+      const pad = c.createGain(); pad.gain.value = 0.0001; pad.connect(out);
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 2; lp.connect(pad);
+      const oscs = [];
+      for (const [f, d] of [[55, -6], [55, 7], [82.4, 3], [110, -4]]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = d; const g = c.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(lp); o.start(); oscs.push(o); }
+      const lfo = c.createOscillator(); lfo.frequency.value = 0.07; const lfoG = c.createGain(); lfoG.gain.value = 250; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+      const pulse = c.createGain(); pulse.gain.value = 0.0001; pulse.connect(out);
+      this.mus = { out, pad, lp, pulse, next: c.currentTime + 0.1, step: 0, level: 0 };
+      pad.gain.setTargetAtTime(0.5, c.currentTime, 3);
+    }
+    const M = this.mus;
+    M.level += (intensity - M.level) * Math.min(1, dt * 0.8);
+    M.lp.frequency.setTargetAtTime(420 + M.level * 900, c.currentTime, 0.5);
+    // sequencer for the combat layer
+    const bpm = 96 + M.level * 40, stepDur = 60 / bpm / 2;
+    if (M.next < c.currentTime - 0.3) M.next = c.currentTime + 0.02; // tab was suspended: don't burst-catch-up
+    while (M.next < c.currentTime + 0.15) {
+      const t = M.next, st = M.step % 16;
+      const lv = M.level;
+      if (lv > 0.12) {
+        if (st % 4 === 0) { // kick
+          const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.18);
+          const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * lv, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+          o.connect(g); g.connect(M.out); o.start(t); o.stop(t + 0.3);
+        }
+        if (st % 2 === 1 && lv > 0.35) { // hat
+          const src = c.createBufferSource(); src.buffer = this.noise; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+          const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08 * lv, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+          src.connect(f); f.connect(g); g.connect(M.out); src.start(t, Math.random()); src.stop(t + 0.06);
+        }
+        const notes = [55, 55, 65.4, 55, 73.4, 55, 65.4, 49];
+        if (st % 2 === 0) { // bass arp
+          const o = c.createOscillator(); o.type = 'square'; o.frequency.value = notes[(st / 2) % 8];
+          const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 300 + lv * 500;
+          const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09 * lv, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + stepDur * 1.6);
+          o.connect(f); f.connect(g); g.connect(M.out); o.start(t); o.stop(t + stepDur * 2);
+        }
+      }
+      M.next += stepDur; M.step++;
+    }
+  }
+  setMusicVolume(v) { this.musicVol = v; if (this.mus) this.mus.out.gain.value = v; }
   stopLoops() { for (const k of Object.keys(this.loops)) this.loop(k, false); }
 }

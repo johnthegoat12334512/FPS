@@ -35,7 +35,7 @@ class Game {
     this.scene.fog = new THREE.Fog(0x14181e, 18, 75);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 220);
 
-    this.settings = { sens: 1, fov: 95, vol: 0.6, invert: false, showFps: false, quality: 'high' };
+    this.settings = { sens: 1, fov: 95, vol: 0.6, music: 0.5, invert: false, showFps: false, quality: 'high' };
     try { Object.assign(this.settings, JSON.parse(store.get(SET_KEY) || '{}')); } catch (e) { /* ignore */ }
 
     this.time = 0; this.fps = 60; this.shake = 0;
@@ -51,6 +51,7 @@ class Game {
 
     this.audio = new Audio();
     this.audio.setVolume(this.settings.vol);
+    this.audio.setMusicVolume(this.settings.music);
     this.input = new Input(this.canvas);
     this.setupLights();
     this.level = new Level(this.scene);
@@ -390,7 +391,7 @@ class Game {
       el.oninput = () => { this.settings[key] = el.type === 'checkbox' ? el.checked : parseFloat(el.value); if (apply) apply(); this.syncSettingsUI(); store.set(SET_KEY, JSON.stringify(this.settings)); };
       void fmt;
     };
-    bind('sens', 'sens'); bind('fov', 'fov', null, () => this.updateFov()); bind('vol', 'vol', null, () => this.audio.setVolume(this.settings.vol));
+    bind('sens', 'sens'); bind('music', 'music', null, () => this.audio.setMusicVolume(this.settings.music)); bind('fov', 'fov', null, () => this.updateFov()); bind('vol', 'vol', null, () => this.audio.setVolume(this.settings.vol));
     bind('invert', 'invert'); bind('showFps', 'showFps');
     $('quality').onchange = () => { this.settings.quality = $('quality').value; this.post.setQuality(this.settings.quality); store.set(SET_KEY, JSON.stringify(this.settings)); };
     const diff = document.querySelectorAll('input[name=diff]');
@@ -402,6 +403,7 @@ class Game {
     $('sens').value = s.sens; $('sensVal').textContent = s.sens.toFixed(2);
     $('fov').value = s.fov; $('fovVal').textContent = s.fov;
     $('vol').value = s.vol; $('volVal').textContent = Math.round(s.vol * 100) + '%';
+    $('music').value = s.music; $('musicVal').textContent = Math.round(s.music * 100) + '%';
     $('invert').checked = !!s.invert; $('showFps').checked = !!s.showFps;
     $('quality').value = s.quality || 'high';
   }
@@ -532,6 +534,11 @@ class Game {
       this.autosaveT -= dt;
       if (this.autosaveT <= 0) { this.autosaveT = 30; this.save(); }
       this.ui.update(dt);
+      // music intensity: nearby creatures, surges, boss
+      let near = 0;
+      for (const e of this.enemies.list) if (e.dying <= 0 && Math.hypot(e.pos.x - this.player.pos.x, e.pos.z - this.player.pos.z) < 18) near++;
+      const inten = Math.min(1, near / 6 + (this.enemies.surgeActive > 0 ? 0.6 : 0) + (this.bossActive() ? 0.7 : 0));
+      this.audio.music(inten, dt);
       if (this.victoryT > 0) { this.victoryT -= dt; if (this.victoryT <= 0) this.showVictory(); }
     }
     if (this.state === 'menu') { this.player.yaw += dt * 0.06; this.player.pitch = 0.05; }
