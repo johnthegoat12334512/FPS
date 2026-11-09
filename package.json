@@ -6,8 +6,13 @@
   "scripts": {
     "build": "esbuild src/main.js --bundle --minify --format=iife --target=es2020 --outfile=dist/game.js",
     "dev": "esbuild src/main.js --bundle --format=iife --target=es2020 --outfile=dist/game.js --sourcemap --watch",
-    "test": "node tools/playtest.cjs"
+    "test": "node tools/playtest.cjs",
+    "deploy": "npm run build && node tools/stage.cjs && npx wrangler@3 deploy"
   },
-  "dependencies": { "three": "0.170.0" },
-  "devDependencies": { "esbuild": "0.24.0" }
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
 }

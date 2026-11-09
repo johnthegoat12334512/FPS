@@ -11,7 +11,9 @@ A first-person cleanup-and-combat game that runs in the browser. Halvorsen Biowo
 
 ## Play
 
-**Just open `index.html` in Chrome, Edge or Firefox.** The game is pre-built into `dist/game.js`, so it needs no install and no server.
+**Online:** https://grime-protocol.johndean-pheakos.workers.dev
+
+**Offline:** just open `index.html` in Chrome, Edge or Firefox.** The game is pre-built into `dist/game.js`, so it needs no install and no server.
 
 Click **New Contract**, then click the screen to capture the mouse.
 
@@ -127,3 +129,11 @@ node tools/anims.cjs
 Captures mid-animation frames of every weapon.
 
 Code layout (`src/`): `main.js` (game loop, states, economy, save) · `level.js` (map, meshes, collision, raycasts, flow-field pathing) · `player.js` (movement) · `weapons.js` + `viewmodel.js` + `anims.js` (guns, knives, tools, first-person models and animations) · `enemies.js` (AI, spawning, boss, power-ups) · `grime.js` (cleanable debris, stains and spores) · `effects.js` (explosions, wind, barrels) · `render.js` (post-processing) · `ui.js` (HUD, minimap, shop).
+
+## Deploying
+
+The game is hosted free on Cloudflare Workers. `tools/stage.cjs` packs the built game into a single Worker script (`build/worker.js`), and `wrangler.toml` deploys it.
+
+```bash
+npm run deploy
+```

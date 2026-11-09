@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grime Protocol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="scope" class="hidden"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div></div>
+  <div id="vignette"></div>
+  <div id="hurtDir"></div>
+  <div id="dmgNums"></div>
+  <div id="crosshair"><i class="ch t"></i><i class="ch b"></i><i class="ch l"></i><i class="ch r"></i><i class="dot"></i></div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+
+  <div id="objective" class="glass">
+    <div class="obj-head"><span id="objPhase">PHASE 1</span><span id="zoneName"></span></div>
+    <div id="objTitle">Loading Bay</div>
+    <div id="objBrief"></div>
+    <div class="prog"><div class="bar"><div id="cleanFill"></div></div><span id="cleanText">0%</span></div>
+    <div id="objCounts"></div>
+  </div>
+
+  <div id="mapWrap"><canvas id="minimap" width="360" height="360"></canvas><div id="mapZone"></div></div>
+
+  <div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
+  <div id="prompt"></div>
+  <div id="flash"></div>
+  <div id="powerups"></div>
+  <div id="tip"><span class="tip-tag">TIP</span><span id="tipText"></span></div>
+
+  <div id="bl">
+    <div id="perks"></div>
+    <div id="creditsRow"><span class="cr-icon">¢</span><span id="credits">0</span></div>
+    <div id="popups"></div>
+    <div class="hpRow glass"><span class="hp-icon">✚</span><div class="bar hp"><div id="hpFill"></div></div><span id="hpText">100</span></div>
+  </div>
+
+  <div id="br">
+    <div id="meters" class="glass">
+      <div class="meter"><label>TANK</label><div class="bar"><div id="tankFill"></div></div><span id="tankText"></span></div>
+      <div class="meter" id="waterM"><label>H₂O</label><div class="bar"><div id="waterFill"></div></div><span id="waterText"></span></div>
+      <div class="meter" id="fuelM"><label>FUEL</label><div class="bar"><div id="fuelFill"></div></div><span id="fuelText"></span></div>
+    </div>
+    <div id="weaponCard" class="glass">
+      <div id="weaponName"></div>
+      <div id="ammo"><span id="mag">12</span><span id="reserve">/ 84</span></div>
+      <div id="slots"></div>
+      <div id="grenades"></div>
+    </div>
+  </div>
+  <div id="fps"></div>
+  <div id="clickHint" class="hidden">Click to resume</div>
+</div>
+
+<!-- Title menu -->
+<div id="menu" class="screen">
+  <div class="panel title-panel">
+    <h1>GRIME<span>PROTOCOL</span></h1>
+    <p class="tag">Halvorsen Bioworks is overrun. You're the cleanup crew.</p>
+    <div class="buttons">
+      <button id="btnContinue" class="hidden">Continue</button>
+      <button id="btnNew">New Contract</button>
+      <button id="btnControls">Controls</button>
+      <button id="btnSettings">Settings</button>
+    </div>
+    <div id="diffRow">Difficulty:
+      <label><input type="radio" name="diff" value="0.75"> Easy</label>
+      <label><input type="radio" name="diff" value="1" checked> Normal</label>
+      <label><input type="radio" name="diff" value="1.4"> Hard</label>
+    </div>
+    <p class="small">Click to capture the mouse. Best with a mouse &amp; keyboard.</p>
+  </div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="panel">
+    <h2>PAUSED</h2>
+    <div id="pauseStats"></div>
+    <div class="buttons">
+      <button id="btnResume">Resume</button>
+      <button id="btnPControls">Controls</button>
+      <button id="btnPSettings">Settings</button>
+      <button id="btnSaveQuit">Save &amp; Quit to Title</button>
+    </div>
+  </div>
+</div>
+
+<div id="controls" class="screen hidden">
+  <div class="panel wide">
+    <h2>CONTROLS</h2>
+    <div class="controls-grid">
+      <div><b>WASD</b> Move</div><div><b>Mouse</b> Look</div>
+      <div><b>Shift</b> Sprint</div><div><b>Space</b> Jump / Mantle ledges</div>
+      <div><b>C</b> Crouch · <b>C while sprinting</b> Slide</div><div><b>Slide + Space</b> Slide-jump (keeps momentum)</div>
+      <div><b>LMB</b> Fire / Use tool / Slash</div><div><b>RMB</b> Aim down sights / Heavy stab (knife)</div>
+      <div><b>R</b> Reload</div><div><b>V</b> Quick knife</div>
+      <div><b>G</b> Foam grenade (cleans + damages)</div><div><b>F</b> Inspect weapon</div>
+      <div><b>1-2</b> Guns · <b>3</b> Knife</div><div><b>4</b> Vacuum · <b>5</b> Hydro Lance · <b>6</b> Spore Torch</div>
+      <div><b>Q</b> Last weapon · <b>Wheel</b> Cycle</div><div><b>E</b> Interact / Buy</div>
+      <div><b>Tab</b> Contract stats</div><div><b>Esc</b> Pause</div>
+    </div>
+    <h3>CONTROLLER</h3>
+    <div class="controls-grid">
+      <div><b>LS / RS</b> Move / look · <b>L3</b> Sprint</div><div><b>RT / LT</b> Fire / Aim</div>
+      <div><b>A</b> Jump · <b>B</b> Crouch / slide</div><div><b>X</b> Reload · <b>Y</b> Swap weapon</div>
+      <div><b>LB</b> Foam grenade · <b>RB / R3</b> Knife</div><div><b>D-pad ↓</b> Interact · <b>↑</b> Inspect · <b>←/→</b> Knife / Vacuum</div>
+    </div>
+    <h3>HOW TO PLAY</h3>
+    <ul class="howto">
+      <li>Each phase is a zone of the facility. Clean it to <b>80%</b> to unlock the next phase.</li>
+      <li><b>Vacuum</b> debris into your tank, then empty it at a green <b>Disposal Chute</b> for credits.</li>
+      <li><b>Hydro Lance</b> washes sludge stains. <b>Spore Torch</b> burns spore pods. Refill at <b>Service Stations</b>.</li>
+      <li>The grime breeds creatures — the dirtier the zone, the faster they come. Kills pay credits.</li>
+      <li>Spend credits at the <b>Supply Terminal</b>, wall-buys, perk machines and the <b>Refinery</b>.</li>
+    </ul>
+    <div class="buttons"><button class="btnBack">Back</button></div>
+  </div>
+</div>
+
+<div id="settings" class="screen hidden">
+  <div class="panel">
+    <h2>SETTINGS</h2>
+    <div class="setting"><label>Mouse sensitivity <span id="sensVal"></span></label><input type="range" id="sens" min="0.2" max="3" step="0.05"></div>
+    <div class="setting"><label>Field of view <span id="fovVal"></span></label><input type="range" id="fov" min="70" max="110" step="1"></div>
+    <div class="setting"><label>Volume <span id="volVal"></span></label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
+    <div class="setting"><label>Music <span id="musicVal"></span></label><input type="range" id="music" min="0" max="1" step="0.05"></div>
+    <div class="setting"><label>Graphics quality</label><select id="quality"><option value="high">High (bloom, post-processing)</option><option value="low">Performance</option></select></div>
+    <div class="setting"><label><input type="checkbox" id="invert"> Invert mouse Y</label></div>
+    <div class="setting"><label><input type="checkbox" id="showFps"> Show FPS</label></div>
+    <div class="buttons"><button class="btnBack">Back</button></div>
+  </div>
+</div>
+
+<div id="shop" class="screen hidden">
+  <div class="panel shop-panel">
+    <div class="shop-head"><h2>SUPPLY TERMINAL</h2><div id="shopCredits"></div><button id="shopClose">Close [E / Esc]</button></div>
+    <div id="shopTabs"></div>
+    <div id="shopBody"></div>
+  </div>
+</div>
+
+<div id="stats" class="screen hidden passive">
+  <div class="panel"><h2>CONTRACT</h2><div id="statsBody"></div></div>
+</div>
+
+<div id="death" class="screen hidden">
+  <div class="panel">
+    <h2 class="red">YOU WERE OVERWHELMED</h2>
+    <p id="deathText"></p>
+    <div class="buttons"><button id="btnRespawn">Redeploy at HQ</button></div>
+  </div>
+</div>
+
+<div id="victory" class="screen hidden">
+  <div class="panel">
+    <h2 class="gold">FACILITY STERILIZED</h2>
+    <p>The Bloom Mother is gone and Halvorsen Bioworks is clean. Contract complete.</p>
+    <div id="victoryStats"></div>
+    <div class="buttons"><button id="btnFreeRoam">Keep Playing (Free Roam)</button><button id="btnVictoryQuit">Quit to Title</button></div>
+  </div>
+</div>
+
+<div id="loading" class="screen"><div class="panel"><h2>Loading…</h2></div></div>
+<div id="errorBox" class="hidden"></div>
+
+<script src="dist/game.js"></script>
+</body>
+</html>
