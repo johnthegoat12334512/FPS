@@ -2,6 +2,13 @@
 
 A first-person cleanup-and-combat game that runs in the browser. Halvorsen Bioworks is overrun by a living sludge called the Bloom, and you're the contractor sent to clean it up. Vacuum debris, pressure-wash sludge and torch spore pods. Sell what you collect, upgrade your gear and fight off the creatures the grime spawns. The movement is modelled on Black Ops 3 Zombies: sprinting, sliding, slide-jumping and auto-mantling.
 
+![Combat](screenshots/fight.png)
+
+| | |
+|---|---|
+| ![Explosion](screenshots/explosion.png) | ![Creatures](screenshots/creatures.png) |
+| ![Washing](screenshots/washing.png) | ![Boss](screenshots/enraged.png) |
+
 ## Play
 
 **Just open `index.html` in Chrome, Edge or Firefox.** The game is pre-built into `dist/game.js`, so it needs no install and no server.

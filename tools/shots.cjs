@@ -81,6 +81,7 @@ const out = process.argv[2] || 'screenshots/tmp'; fs.mkdirSync(out, { recursive:
     P.spawnAt(pile.x - 2.2, pile.z, -Math.PI / 2); P.pitch = -0.5; W.switchTo('vacuum');
     for (let k = 0; k < 30; k++) g.step(1 / 60);
     for (let k = 0; k < 14; k++) { g.input.mouse[0] = true; g.step(1 / 60); } };
+  scen.start_tip = () => { const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(12, 32); P.spawnAt(x, z, -Math.PI / 2 - 0.25); P.pitch = 0; g.stats.time = 4; g.tipCheckT = 0; for (let k = 0; k < 30; k++) g.step(1 / 60); };
   const which = (process.argv[3] || Object.keys(scen).join(',')).split(',');
   for (const n of which) {
     await page.evaluate(`(${scen[n].toString()})()`);
