@@ -98,8 +98,6 @@ function robotForearm(parent, side = 1, len = 0.34) {
   void strip;
   // pistons
   cyl(a, 0.006, len * 0.5, m.steel, -side * 0.028, -0.02, len * 0.4, 8);
-  // elbow joint at the end
-  const e = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 10), m.robotJoint); e.position.z = len + 0.01; a.add(e);
   return a;
 }
 
@@ -288,8 +286,13 @@ export function buildGun(id, refined) {
     addArms(g, [0.0, -0.09, 0.03], [-0.005, -0.06, -0.42]);
   }
 
-  const muzzle = new THREE.Object3D(); muzzle.position.set(0, id === 'cannon' ? 0.028 : id === 'sidearm' ? 0.026 : 0.012, muzzleZ); g.add(muzzle);
-  const flash = muzzleFlash(); flash.position.copy(muzzle.position); g.add(flash);
+  // move every gun part (not the arms) into a 'body' group so tricks can spin the gun inside the hand
+  const body = new THREE.Group();
+  for (const ch of [...g.children]) if (ch !== g.userData.rightHand && ch !== g.userData.leftHand) body.add(ch);
+  g.add(body);
+  g.userData.body = body;
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0, id === 'cannon' ? 0.028 : id === 'sidearm' ? 0.026 : 0.012, muzzleZ); body.add(muzzle);
+  const flash = muzzleFlash(); flash.position.copy(muzzle.position); body.add(flash);
   if (id === 'scatter') flash.scale.setScalar(1.8);
   if (id === 'longbow' || id === 'cannon') flash.scale.setScalar(1.5);
   g.userData.muzzle = muzzle; g.userData.flash = flash; g.userData.parts = P; g.userData.eject = ejectPos;

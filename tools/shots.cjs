@@ -54,6 +54,15 @@ const out = process.argv[2] || 'screenshots/tmp'; fs.mkdirSync(out, { recursive:
       for (let k = 0; k < 20; k++) { g.input.mouse[0] = true; g.step(1 / 60); } g.input.mouse[0] = false;
     },
   };
+  scen.hq = () => { const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(10, 34); P.spawnAt(x, z, Math.PI * 0.95); P.pitch = -0.05; g.weapons.switchTo('knife'); for (let k = 0; k < 40; k++) g.step(1 / 60); };
+  scen.perks = () => { const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(10, 34); P.spawnAt(x, z, Math.PI); P.yaw = Math.PI; P.pitch = -0.1; for (let k = 0; k < 20; k++) g.step(1 / 60); };
+  scen.creatures = () => { const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(27, 28); P.spawnAt(x, z, -Math.PI / 2); P.pitch = 0.08;
+    const a = g.enemies.spawn('sludger', x + 3.2, z - 1.2, true), b = g.enemies.spawn('spitter', x + 4, z + 1.0, true), c = g.enemies.spawn('brute', x + 6, z, true);
+    for (const e of [a, b, c]) { e.speedMul = 0; e.attackCd = 99; }
+    for (let k = 0; k < 30; k++) { P.yaw = -Math.PI / 2; g.step(1 / 60); } };
+  for (const t of ['sludger', 'spitter', 'brute']) scen['only_' + t] = new Function(`const g = window.GAME, P = g.player; g.enemies.clearAll(); g.enemies.spawnTimer = 999; const [x, z] = g.level.center(27, 28); P.spawnAt(x, z, -Math.PI / 2); P.pitch = 0.08;
+    const a = g.enemies.spawn('${t}', x + 4, z, true); a.speedMul = 0; a.attackCd = 99;
+    for (let k = 0; k < 30; k++) { P.yaw = -Math.PI / 2; g.step(1 / 60); }`);
   const which = (process.argv[3] || Object.keys(scen).join(',')).split(',');
   for (const n of which) {
     await page.evaluate(`(${scen[n].toString()})()`);

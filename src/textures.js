@@ -29,10 +29,10 @@ export function floorTexture(kind, seed = 1) {
   const rng = mulberry32(seed);
   const c = canvas(256, 256); const g = c.getContext('2d');
   if (kind === 'hub') {
-    g.fillStyle = '#5d6670'; g.fillRect(0, 0, 256, 256);
-    g.strokeStyle = '#4a525b'; g.lineWidth = 4;
+    g.fillStyle = '#4a525c'; g.fillRect(0, 0, 256, 256);
+    g.strokeStyle = '#363d45'; g.lineWidth = 4;
     for (let i = 0; i <= 256; i += 128) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 256); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(256, i); g.stroke(); }
-    g.fillStyle = '#6c7680'; g.fillRect(6, 6, 116, 116); g.fillRect(134, 134, 116, 116);
+    g.fillStyle = '#56606a'; g.fillRect(6, 6, 116, 116); g.fillRect(134, 134, 116, 116);
     noise(g, 256, 256, 3000, rng, 0.06);
   } else if (kind === 'bay') {
     g.fillStyle = '#6b6457'; g.fillRect(0, 0, 256, 256);
@@ -114,8 +114,10 @@ export function labelTexture(lines, opts = {}) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   const n = lines.length;
   lines.forEach((ln, i) => {
-    const size = ln.size || Math.floor(h / (n + 1.2));
+    let size = ln.size || Math.floor(h / (n + 1.2));
     g.font = `${ln.bold === false ? '' : 'bold '}${size}px "Segoe UI", Arial, sans-serif`;
+    const tw = g.measureText(ln.text).width;
+    if (tw > w * 0.9) { size = Math.floor(size * w * 0.9 / tw); g.font = `${ln.bold === false ? '' : 'bold '}${size}px "Segoe UI", Arial, sans-serif`; }
     g.fillStyle = ln.color || '#fff';
     g.fillText(ln.text, w / 2, h * (i + 1) / (n + 1));
   });

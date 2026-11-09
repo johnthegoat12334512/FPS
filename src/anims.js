@@ -41,6 +41,7 @@ export function gunAnim(model, id, s, o, fx) {
   const r = reloading ? rP : 0;
   const ins = iP >= 0 ? iP : -1;
   if (model.userData.leftRest && !reloading) leftHandTo(model, model.userData.leftRest, 0);
+  const T = { x: 0, y: 0, z: 0 }; // trick rotation applied to the gun body only (spins inside the hand)
 
   switch (id) {
     case 'sidearm': {
@@ -51,8 +52,8 @@ export function gunAnim(model, id, s, o, fx) {
         magSwap(P, r, 0.1, 0.32, 0.42, 0.62, 0.35);
         leftHandTo(model, { x: -0.03, y: -0.2, z: 0.02 }, bump(r, 0.3, 0.68));
       } else magSwap(P, 1, 0, 0, 0, 0);
-      o.rot.z -= ease(dT) * TAU; o.pos.y -= dT * 0.08; // twirl draw
-      if (ins >= 0) { o.rot.y += Math.sin(ins * TAU) * 0.7; o.rot.z += plateau(ins, 0.35, 0.85, 0.12) * Math.PI; o.pos.x -= bump(ins, 0, 1) * 0.06; }
+      T.x -= ease(dT) * TAU; o.pos.y -= dT * 0.08; // trigger-finger twirl on draw
+      if (ins >= 0) { o.rot.y += Math.sin(ins * TAU) * 0.45; T.z += plateau(ins, 0.35, 0.85, 0.12) * Math.PI; o.pos.x -= bump(ins, 0, 1) * 0.05; }
       break;
     }
     case 'cannon': {
@@ -69,8 +70,8 @@ export function gunAnim(model, id, s, o, fx) {
         if (r > 0.24 && !s.flags.ejected) { s.flags.ejected = true; for (let i = 0; i < 6; i++) fx.casingAt(model, -0.05, 0.02, -0.06); }
         leftHandTo(model, { x: -0.06, y: -0.04, z: -0.05 }, bump(r, 0.35, 0.8));
       }
-      o.rot.x -= ease(dT) * TAU; o.pos.y -= dT * 0.05;
-      if (ins >= 0) { const t = ins < 0.75 ? seg(ins, 0, 0.75) : 1; o.rot.x += t * TAU * 2; o.pos.y += bump(ins, 0, 0.75) * 0.03; }
+      T.x -= ease(dT) * TAU * 2; o.pos.y -= dT * 0.05;
+      if (ins >= 0) { const t = ins < 0.75 ? seg(ins, 0, 0.75) : 1; T.x += t * TAU * 3; o.pos.y += bump(ins, 0, 0.75) * 0.03; o.rot.y -= bump(ins, 0, 1) * 0.3; }
       break;
     }
     case 'hornet': {
@@ -84,7 +85,7 @@ export function gunAnim(model, id, s, o, fx) {
         o.rot.y += 0.25 * bump(r, 0.74, 0.9);
       } else magSwap(P, 1, 0, 0, 0, 0);
       o.pos.x += dT * 0.25; o.rot.z -= dT * 1.0; o.rot.y += dT * 0.4;
-      if (ins >= 0) { o.rot.z += plateau(ins, 0.2, 0.85, 0.15) * Math.PI; o.rot.y += Math.sin(ins * TAU) * 0.35; }
+      if (ins >= 0) { T.z += plateau(ins, 0.2, 0.85, 0.15) * Math.PI; o.rot.y += Math.sin(ins * TAU) * 0.3; }
       break;
     }
     case 'scatter': {
@@ -107,7 +108,7 @@ export function gunAnim(model, id, s, o, fx) {
       } else if (P.shell) P.shell.visible = false;
       pump = Math.max(pump, dT > 0 && dT < 0.6 ? bump(dT, 0, 0.6) : 0);
       if (P.pump) P.pump.position.z = P.pumpRest + 0.085 * pump;
-      if (ins >= 0) { o.rot.z += ease(ins) * TAU; o.pos.x -= bump(ins, 0, 1) * 0.05; o.rot.y -= bump(ins, 0, 1) * 0.3; }
+      if (ins >= 0) { T.z += ease(ins) * TAU; o.pos.x -= bump(ins, 0, 1) * 0.04; o.rot.y -= bump(ins, 0, 1) * 0.25; }
       o.pos.y -= dT * 0.12; o.rot.x -= dT * 0.4;
       break;
     }
@@ -126,7 +127,7 @@ export function gunAnim(model, id, s, o, fx) {
       charge = Math.max(charge, bump(1 - dT, 0.35, 0.85) * (dT > 0 ? 1 : 0));
       if (P.charge) P.charge.position.z = P.chargeRest + 0.06 * charge;
       o.rot.z -= dT * 0.8; o.pos.y -= dT * 0.1;
-      if (ins >= 0) { o.rot.y -= plateau(ins, 0.05, 0.55, 0.12) * 0.9; o.rot.z += plateau(ins, 0.5, 0.95, 0.12) * 0.7; o.pos.x -= bump(ins, 0, 1) * 0.05; if (bump(ins, 0.3, 0.4) > 0.5) o.pos.y += 0.006; }
+      if (ins >= 0) { o.rot.y -= plateau(ins, 0.05, 0.55, 0.12) * 0.6; T.z += plateau(ins, 0.5, 0.95, 0.12) * 0.9; o.pos.x -= bump(ins, 0, 1) * 0.05; if (bump(ins, 0.3, 0.4) > 0.5) o.pos.y += 0.006; }
       break;
     }
     case 'mauler': {
@@ -142,7 +143,7 @@ export function gunAnim(model, id, s, o, fx) {
         if (r > 0.82 && r < 0.88) { o.pos.y -= 0.012; o.rot.z += (Math.random() - 0.5) * 0.03; } // lid slam
       } else { if (P.lid) P.lid.rotation.x = 0; if (P.box) { P.box.position.copy(P.boxRest); P.box.visible = true; } if (P.belt) P.belt.visible = true; }
       o.pos.y -= Math.pow(dT, 1.5) * 0.3; o.rot.x -= dT * 0.5;
-      if (ins >= 0) { o.rot.x -= bump(ins, 0, 1) * 0.35; o.rot.y += bump(ins, 0.1, 0.9) * 0.6; if (P.lid) P.lid.rotation.x = -0.8 * plateau(ins, 0.3, 0.7); }
+      if (ins >= 0) { o.rot.x -= bump(ins, 0, 1) * 0.3; o.rot.y += bump(ins, 0.1, 0.9) * 0.45; if (P.lid) P.lid.rotation.x = -0.8 * plateau(ins, 0.3, 0.7); }
       break;
     }
     case 'marksman': {
@@ -154,7 +155,7 @@ export function gunAnim(model, id, s, o, fx) {
         leftHandTo(model, { x: -0.01, y: -0.18, z: -0.14 }, bump(r, 0.28, 0.7));
       } else magSwap(P, 1, 0, 0, 0, 0);
       o.pos.z += dT * 0.1; o.rot.y += dT * 0.5; o.pos.y -= dT * 0.06;
-      if (ins >= 0) { o.rot.y += plateau(ins, 0.05, 0.6, 0.15) * 0.85; o.rot.x += plateau(ins, 0.05, 0.6, 0.15) * 0.15; o.rot.z -= plateau(ins, 0.55, 0.95, 0.12) * 0.6; }
+      if (ins >= 0) { o.rot.y += plateau(ins, 0.05, 0.6, 0.15) * 0.55; o.rot.x += plateau(ins, 0.05, 0.6, 0.15) * 0.12; T.z -= plateau(ins, 0.55, 0.95, 0.12) * 0.8; }
       break;
     }
     case 'longbow': {
@@ -179,11 +180,12 @@ export function gunAnim(model, id, s, o, fx) {
       }
       if (P.boltHandle) P.boltHandle.rotation.z = 1.25 * up;
       if (P.bolt) P.bolt.position.z = P.boltRest + 0.075 * back;
-      if (ins >= 0) { o.rot.y += plateau(ins, 0.05, 0.6, 0.15) * 0.7; o.rot.x -= plateau(ins, 0.05, 0.6, 0.15) * 0.2; o.rot.z += plateau(ins, 0.55, 0.95, 0.12) * 0.5; }
+      if (ins >= 0) { o.rot.y += plateau(ins, 0.05, 0.6, 0.15) * 0.5; o.rot.x -= plateau(ins, 0.05, 0.6, 0.15) * 0.15; T.z += plateau(ins, 0.55, 0.95, 0.12) * 0.7; }
       o.pos.y -= dT * 0.05;
       break;
     }
   }
+  if (model.userData.body) model.userData.body.rotation.set(T.x, T.y, T.z);
 }
 
 // Knife swings: unique per knife kind
@@ -221,7 +223,7 @@ export function knifeAnim(model, kind, s, o) {
   if (dT > 0) {
     if (kind === 'karambit') { if (H) H.rotation.z = ease(dT) * TAU * 2; }
     else if (kind === 'butterfly') { if (model.userData.h1) { model.userData.h1.rotation.x = ease(dT) * Math.PI * 3; model.userData.h2.rotation.x = -ease(dT) * Math.PI * 3; } }
-    else { o.rot.x += ease(dT) * TAU; }
+    else if (H) { H.rotation.x = 0.5 + ease(dT) * TAU; }
     o.pos.y -= dT * 0.06;
   }
   // inspects
@@ -236,12 +238,12 @@ export function knifeAnim(model, kind, s, o) {
       if (H) H.rotation.z = iP < 0.7 ? iP / 0.7 * TAU * 2 : 0;
       o.rot.y -= e * 0.6; o.pos.x -= e * 0.08;
     } else if (kind === 'huntsman') {
-      o.rot.y -= e * 1.0; o.rot.x += plateau(iP, 0.4, 0.9) * 0.6; o.pos.x -= e * 0.1;
+      o.rot.y -= e * 0.5; if (H) H.rotation.y = e * 1.4; o.rot.x += plateau(iP, 0.4, 0.9) * 0.3; o.pos.x -= e * 0.08;
     } else if (kind === 'bayonet') {
-      o.rot.z += plateau(iP, 0.1, 0.9) * Math.PI * (iP < 0.5 ? 1 : 1); o.rot.y -= e * 0.5; o.pos.x -= e * 0.08;
+      if (H) H.rotation.x = 0.5 + plateau(iP, 0.1, 0.9) * Math.PI; o.rot.y -= e * 0.4; o.pos.x -= e * 0.06;
     } else {
-      o.rot.y -= e * 1.2; o.rot.z += e * 0.9; o.pos.x -= e * 0.12; o.pos.y += e * 0.04;
-      if (H) H.rotation.z = Math.sin(iP * TAU) * 0.3;
+      o.rot.y -= e * 0.6; o.rot.z += e * 0.5; o.pos.x -= e * 0.08; o.pos.y += e * 0.03;
+      if (H) { H.rotation.z = Math.sin(iP * TAU) * 0.3; H.rotation.y = e * 1.2; }
     }
   }
 }

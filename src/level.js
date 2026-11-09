@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { floorTexture, wallTexture, labelTexture, wallbuyTexture, normalFromTexture } from './textures.js';
 import { GUNS, PERKS } from './data.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export const CELL = 2;
 export const WALL_H = 4.5;
@@ -300,50 +301,88 @@ export class Level {
   }
 
   _buildObject(o, grp) {
-    const box = (w, h, d, color, y = h / 2, z = 0, extra = {}) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color, ...extra }));
-      mesh.position.set(0, y, z); grp.add(mesh); return mesh;
-    };
-    const screen = (tex, w, h, y, z) => {
-      const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
-      s.position.set(0, y, z); grp.add(s); return s;
-    };
-    if (o.kind === 'S') {
-      box(1.6, 1.1, 1.0, 0x30363f);
-      box(1.6, 1.2, 0.3, 0x262b33, 1.7, -0.35);
-      screen(labelTexture([{ text: 'SUPPLY TERMINAL', color: '#6fe3ff' }, { text: 'Press E', color: '#fff', size: 44 }], { bg: '#06222c', border: '#1fb6e0' }), 1.4, 0.8, 1.7, -0.19);
-    } else if (o.kind === 'R') {
-      box(1.7, 1.0, 1.4, 0x2b1f3a);
-      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: 0xc04dff }));
-      core.position.y = 1.5; grp.add(core); o.anim = core;
-      box(0.2, 1.6, 0.2, 0x403055, 1.6, -0.55);
-      screen(labelTexture([{ text: 'REFINERY', color: '#e09bff' }, { text: '5000 ¢', color: '#ffd25a' }], { bg: '#1a0b26', border: '#c04dff', h: 200 }), 1.2, 0.47, 0.6, 0.71);
-    } else if (o.kind === 'M') {
-      box(1.8, 0.9, 1.1, 0x6b4a2a);
-      box(1.85, 0.12, 1.15, 0x3c2a18, 0.9);
-      const q = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.55), new THREE.MeshBasicMaterial({ map: labelTexture([{ text: '? SUPPLY CRATE ?', color: '#7fd8ff' }, { text: '950 ¢', color: '#ffd25a' }], { bg: '#0b1a2a', border: '#7fd8ff', h: 256 }) }));
-      q.position.set(0, 0.5, 0.56); grp.add(q);
-      const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 3.5, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x5ac8ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
-      glow.position.y = 2.6; grp.add(glow);
-    } else if (o.kind === 'I') {
-      box(1.8, 1.4, 1.6, 0x3b3f2a);
-      box(1.2, 0.6, 0.1, 0x050505, 1.0, 0.8);
-      const g2 = box(1.4, 0.15, 0.12, 0x66ff55, 1.4, 0.8, { emissive: 0x33aa22 });
-      screen(labelTexture([{ text: 'DISPOSAL CHUTE', color: '#8dff6f' }, { text: 'Empty tank: E', color: '#fff', size: 40 }], { bg: '#0d1f0a', border: '#55dd33' }), 1.4, 0.7, 1.95, 0.0).position.z = 0.0;
-      grp.children[grp.children.length - 1].position.set(0, 1.95, 0.81);
-      g2.name = 'glow';
-    } else if (o.kind === 'W') {
-      const mat = new THREE.MeshLambertMaterial({ color: 0x2a6fbf });
-      for (const dx of [-0.45, 0.45]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 1.7, 14), mat); c.position.set(dx, 0.85, 0); grp.add(c); }
-      const f = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.3, 10), new THREE.MeshLambertMaterial({ color: 0xc0392b })); f.position.set(0, 0.65, 0.35); grp.add(f);
-      screen(labelTexture([{ text: 'SERVICE STATION', color: '#7fc8ff' }, { text: 'Water + Fuel: E', color: '#fff', size: 40 }], { bg: '#08182a', border: '#2a8cf0' }), 1.4, 0.7, 2.0, 0.42);
-    } else if (o.kind === 'P') {
+    const std = (color, metal = 0.6, rough = 0.4, extra = {}) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough, ...extra });
+    const glow = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
+    const rb = (w, h, d, mat, x = 0, y = 0, z = 0, r = 0.04) => { const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2.1, h / 2.1, d / 2.1)), mat); m.position.set(x, y, z); grp.add(m); return m; };
+    const cy = (r, h, mat, x = 0, y = 0, z = 0, seg = 24, r2) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r2 ?? r, h, seg), mat); m.position.set(x, y, z); grp.add(m); return m; };
+    const screen = (tex, w, h, y, z, x = 0) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.3, 1.3, 1.3) })); s.position.set(x, y, z); grp.add(s); return s; };
+    const dark = std(0x1a1d22, 0.7, 0.35), steel = std(0x8a929c, 0.9, 0.25), panel = std(0x2c323a, 0.75, 0.35);
+    const light = (color, inten, y, z) => { const l = new THREE.PointLight(color, inten, 4.5, 1.6); l.position.set(0, y, z); grp.add(l); return l; };
+    if (o.kind === 'S') { // supply terminal
+      rb(1.7, 1.0, 1.0, panel, 0, 0.5, 0, 0.06);
+      rb(1.75, 0.08, 1.05, dark, 0, 1.02, 0, 0.03);
+      const keys = rb(1.2, 0.06, 0.4, dark, 0, 1.08, 0.18, 0.02); keys.rotation.x = -0.3;
+      for (let i = 0; i < 8; i++) rb(0.1, 0.03, 0.08, std(0x3a4450, 0.5, 0.5), -0.45 + i * 0.13, 1.12, 0.2, 0.01).rotation.x = -0.3;
+      rb(1.7, 1.35, 0.25, panel, 0, 1.85, -0.38, 0.06);
+      rb(1.5, 0.92, 0.04, dark, 0, 1.9, -0.25, 0.02);
+      screen(labelTexture([{ text: 'SUPPLY TERMINAL', color: '#6fe3ff' }, { text: 'WEAPONS · TOOLS · UPGRADES', color: '#9fd8ff', size: 30 }, { text: '[ E ]', color: '#fff', size: 44 }], { bg: '#04161e', border: '#1fb6e0' }), 1.42, 0.82, 1.9, -0.225);
+      rb(1.7, 0.05, 0.05, glow(0.2, 2, 3), 0, 2.56, -0.3, 0.02);
+      rb(0.05, 0.9, 0.05, glow(0.2, 2, 3), 0.86, 0.5, 0.5, 0.02); rb(0.05, 0.9, 0.05, glow(0.2, 2, 3), -0.86, 0.5, 0.5, 0.02);
+      light(0x3ac8ff, 6, 1.9, 0.6);
+    } else if (o.kind === 'R') { // refinery (weapon upgrade machine)
+      const purple = std(0x2b1f3a, 0.7, 0.3);
+      rb(1.8, 0.9, 1.4, purple, 0, 0.45, 0, 0.08);
+      rb(1.9, 0.1, 1.5, dark, 0, 0.92, 0, 0.04);
+      for (const sx of [-0.7, 0.7]) { cy(0.08, 1.7, steel, sx, 1.75, -0.5, 12); cy(0.12, 0.12, glow(2, 0.5, 2.8), sx, 2.6, -0.5, 12); }
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 10, 40), std(0x8a5ab0, 0.9, 0.2)); ring.position.set(0, 1.6, 0); ring.rotation.x = Math.PI / 2; grp.add(ring);
+      const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.025, 8, 40), glow(2.2, 0.6, 3)); ring2.position.set(0, 1.6, 0); grp.add(ring2);
+      const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 2), glow(2.4, 0.8, 3.2));
+      core.position.y = 1.6; grp.add(core); o.anim = core; o.anim2 = ring2;
+      screen(labelTexture([{ text: 'REFINERY', color: '#e09bff' }, { text: '5000 ¢', color: '#ffd25a' }], { bg: '#14081e', border: '#c04dff', h: 200 }), 1.1, 0.43, 0.55, 0.71);
+      light(0xc04dff, 8, 1.6, 0.6);
+    } else if (o.kind === 'M') { // supply crate
+      const wood = std(0x6b4a2a, 0.1, 0.7);
+      rb(1.8, 0.85, 1.1, wood, 0, 0.45, 0, 0.05);
+      for (const sx of [-0.85, 0.85]) rb(0.08, 0.9, 1.14, dark, sx, 0.45, 0, 0.02);
+      rb(1.86, 0.08, 1.16, dark, 0, 0.9, 0, 0.02);
+      const lid = rb(1.82, 0.1, 1.12, wood, 0, 0.97, 0, 0.03); void lid;
+      screen(labelTexture([{ text: '? SUPPLY CRATE ?', color: '#7fd8ff' }, { text: '950 ¢', color: '#ffd25a' }], { bg: '#06121e', border: '#7fd8ff', h: 256 }), 1.1, 0.55, 0.47, 0.56);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 3.4, 24, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 0.9, 1.6), transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      beam.position.y = 2.7; grp.add(beam); o.beam = beam;
+      light(0x5ac8ff, 5, 1.6, 0);
+    } else if (o.kind === 'I') { // disposal chute
+      const olive = std(0x3b4229, 0.6, 0.45);
+      rb(1.8, 1.4, 1.6, olive, 0, 0.7, 0, 0.08);
+      rb(1.3, 0.7, 0.2, dark, 0, 1.0, 0.75, 0.05);
+      const mouth = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.5), new THREE.MeshBasicMaterial({ color: 0x020302 })); mouth.position.set(0, 1.0, 0.86); grp.add(mouth);
+      rb(1.4, 0.08, 0.12, glow(0.5, 3, 0.4), 0, 1.42, 0.8, 0.03);
+      for (let i = 0; i < 5; i++) { const st = rb(0.14, 0.5, 0.02, std(i % 2 ? 0x111111 : 0xd6a21c, 0.3, 0.5), -0.56 + i * 0.28, 0.35, 0.81, 0.01); st.rotation.z = 0.5; }
+      cy(0.12, 1.4, steel, 0.7, 2.1, -0.5, 16);
+      cy(0.16, 0.2, dark, 0.7, 2.85, -0.5, 16);
+      screen(labelTexture([{ text: 'DISPOSAL CHUTE', color: '#8dff6f' }, { text: 'Empty tank: E', color: '#fff', size: 40 }], { bg: '#081405', border: '#55dd33' }), 1.3, 0.6, 1.95, 0.81);
+      light(0x55ff33, 5, 1.2, 1.0);
+    } else if (o.kind === 'W') { // service station
+      const blue = std(0x2a6fbf, 0.6, 0.3), red = std(0xb83222, 0.6, 0.3);
+      for (const [dx, m] of [[-0.45, blue], [0.45, red]]) {
+        cy(0.36, 1.6, m, dx, 0.85, -0.05, 28);
+        cy(0.37, 0.06, dark, dx, 0.3, -0.05, 28); cy(0.37, 0.06, dark, dx, 1.4, -0.05, 28);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.36, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), m); cap.position.set(dx, 1.65, -0.05); grp.add(cap);
+        cy(0.05, 0.4, steel, dx, 1.9, -0.05, 12);
+      }
+      const valve = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 8, 20), steel); valve.position.set(0, 1.1, 0.35); grp.add(valve);
+      rb(1.3, 0.5, 0.2, panel, 0, 0.6, 0.35, 0.04);
+      screen(labelTexture([{ text: 'SERVICE STATION', color: '#7fc8ff' }, { text: 'Water + Fuel: E', color: '#fff', size: 40 }], { bg: '#06111e', border: '#2a8cf0' }), 1.2, 0.42, 0.62, 0.46);
+      light(0x5aa8ff, 4, 1.5, 0.8);
+    } else if (o.kind === 'P') { // perk machine
       const perk = PERKS[o.perk];
-      box(1.3, 2.1, 1.0, perk.color);
-      box(1.1, 1.0, 0.05, 0x111111, 1.1, 0.5);
-      screen(labelTexture([{ text: perk.name.toUpperCase(), color: '#fff' }, { text: perk.cost + ' ¢', color: '#ffd25a' }], { bg: '#101010', border: '#' + perk.color.toString(16).padStart(6, '0'), h: 256 }), 1.0, 0.5, 1.6, 0.53);
-      const glow = box(1.32, 0.1, 1.02, 0xffffff, 2.12, 0, { emissive: perk.color });
-      glow.material.emissiveIntensity = 1.0;
+      const col = new THREE.Color(perk.color);
+      const body = std(perk.color, 0.45, 0.35);
+      rb(1.3, 2.05, 1.0, body, 0, 1.03, 0, 0.1);
+      rb(1.36, 0.15, 1.06, dark, 0, 0.08, 0, 0.04);
+      rb(1.1, 1.0, 0.06, dark, 0, 1.25, 0.5, 0.03);
+      // shelves with glowing bottles behind glass
+      for (let j = 0; j < 2; j++) rb(1.0, 0.03, 0.14, steel, 0, 0.84 + j * 0.42, 0.6, 0.01);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+        cy(0.055, 0.24, new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(1.8) }), -0.3 + i * 0.3, 0.98 + j * 0.42, 0.6, 12);
+        cy(0.022, 0.06, steel, -0.3 + i * 0.3, 1.13 + j * 0.42, 0.6, 8);
+      }
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.95), std(0x99ccff, 0.1, 0.05, { transparent: true, opacity: 0.18 })); glass.position.set(0, 1.25, 0.69); grp.add(glass);
+      for (const sx of [-0.54, 0.54]) rb(0.05, 1.0, 0.22, dark, sx, 1.25, 0.6, 0.02);
+      rb(1.13, 0.05, 0.22, dark, 0, 1.76, 0.6, 0.02); rb(1.13, 0.05, 0.22, dark, 0, 0.74, 0.6, 0.02);
+      screen(labelTexture([{ text: perk.name.toUpperCase(), color: '#fff' }, { text: perk.cost + ' ¢', color: '#ffd25a' }], { bg: '#0a0a0a', border: '#' + perk.color.toString(16).padStart(6, '0'), h: 256 }), 1.0, 0.42, 1.9, 0.51);
+      rb(1.34, 0.1, 1.04, new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(2.2) }), 0, 2.1, 0, 0.04);
+      rb(0.4, 0.12, 0.06, dark, 0, 0.5, 0.5, 0.02);
+      light(perk.color, 5, 1.6, 1.0);
     }
   }
 
@@ -439,7 +478,11 @@ export class Level {
         for (const m of d.meshes) { m.position.y = WALL_H / 2 + d.t * (WALL_H - 0.2); if (d.t >= 1) m.visible = false; }
       }
     }
-    for (const o of this.objects) if (o.anim) { o.anim.rotation.y = time * 1.5; o.anim.rotation.x = time * 0.7; o.anim.position.y = 1.5 + Math.sin(time * 2) * 0.08; }
+    for (const o of this.objects) {
+      if (o.anim) { o.anim.rotation.y = time * 1.5; o.anim.rotation.x = time * 0.7; o.anim.position.y = 1.6 + Math.sin(time * 2) * 0.08; }
+      if (o.anim2) { o.anim2.rotation.x = time * 2.1; o.anim2.rotation.y = time * 1.3; }
+      if (o.beam) o.beam.material.opacity = 0.12 + Math.sin(time * 3) * 0.05;
+    }
   }
 
   // ---------------------------------------------------------- collision

@@ -91,8 +91,41 @@ export class Enemies {
     }
     g.add(body);
     parts.body = body;
+    this.addDetails(type, g, mat, parts);
     void H;
     return { g, parts };
+  }
+
+  addDetails(type, g, mat, parts) {
+    const G = this.detailGeo ||= {
+      cone: new THREE.ConeGeometry(1, 1, 8), tooth: new THREE.ConeGeometry(0.015, 0.05, 5),
+      plate: new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+    };
+    const M = this.detailMat ||= {
+      mouth: new THREE.MeshBasicMaterial({ color: 0x120404 }), tooth: new THREE.MeshStandardMaterial({ color: 0xe8e0c0, roughness: 0.4 }),
+      chitin: new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.35, metalness: 0.3 }),
+      crack: new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.9, 0.2) }),
+      slime: new THREE.MeshStandardMaterial({ color: 0x9cff6a, roughness: 0.1, transparent: true, opacity: 0.85, emissive: 0x2a6a10 }),
+    };
+    const mouth = (y, z, w, h) => {
+      const m = new THREE.Mesh(this.geo.body, M.mouth); m.scale.set(w, h, 0.05); m.position.set(0, y, z); g.add(m);
+      for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(G.tooth, M.tooth); t.position.set(-w * 0.7 + i * w * 0.35, y + h * 0.55, z + 0.02); t.rotation.x = Math.PI; g.add(t); }
+      for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(G.tooth, M.tooth); t.position.set(-w * 0.55 + i * w * 0.37, y - h * 0.55, z + 0.02); g.add(t); }
+    };
+    if (type === 'sludger') {
+      mouth(1.3, 0.31, 0.13, 0.06);
+      for (let i = 0; i < 5; i++) { const d = new THREE.Mesh(G.cone, M.slime); const a = i / 5 * Math.PI * 2; d.scale.set(0.05, 0.25 + Math.random() * 0.2, 0.05); d.rotation.x = Math.PI; d.position.set(Math.cos(a) * 0.36, 0.28, Math.sin(a) * 0.32); g.add(d); }
+    } else if (type === 'spitter') {
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.22, 10), mat); tube.rotation.x = Math.PI / 2; tube.position.set(0, 1.66, 0.4); g.add(tube);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 6, 12), M.slime); ring.position.set(0, 1.66, 0.51); g.add(ring);
+      for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(G.cone, mat); t.scale.set(0.04, 0.4, 0.04); t.position.set((i - 1.5) * 0.12, 1.95, -0.05); t.rotation.z = (i - 1.5) * 0.35; g.add(t); }
+    } else if (type === 'brute') {
+      mouth(2.12, 0.55, 0.2, 0.08);
+      for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(G.plate, M.chitin); p.scale.set(0.55 - i * 0.08, 0.3, 0.4); p.position.set(0, 1.9 - i * 0.42, -0.42 + i * 0.04); p.rotation.x = -1.2 - i * 0.15; g.add(p); }
+      for (const sx of [-1, 1]) { const h = new THREE.Mesh(G.cone, M.chitin); h.scale.set(0.07, 0.35, 0.07); h.position.set(sx * 0.22, 2.48, 0.2); h.rotation.set(-0.5, 0, -sx * 0.6); g.add(h); }
+      for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.35 + i * 0.1, 0.02), M.crack); c.position.set(-0.15 + i * 0.15, 1.35, 0.66); c.rotation.z = (i - 1) * 0.5; g.add(c); }
+      for (const sx of [-1, 1]) { const sp = new THREE.Mesh(G.plate, M.chitin); sp.scale.set(0.35, 0.25, 0.35); sp.position.set(sx * 0.85, 1.75, 0.1); sp.rotation.z = sx * 0.4; g.add(sp); }
+    }
   }
 
   spawn(type, x, z, instant = false) {
@@ -280,7 +313,7 @@ export class Enemies {
       const wob = Math.sin(e.anim * (e.charge > 0 ? 18 : 9)) * 0.08;
       e.parts.body.rotation.z = wob;
       if (e.parts.arms) e.parts.arms.forEach((a, k) => { a.rotation.x = (e.type === 'sludger' ? -1.1 : 0) + Math.sin(e.anim * 9 + k * Math.PI) * 0.4 - (e.windup > 0 ? 0.9 : 0); });
-      if (e.parts.sac) e.parts.sac.scale.setScalar(0.3 + (1 - e.attackCd / e.d.rate) * 0.08);
+      if (e.parts.sac) e.parts.sac.scale.setScalar(0.3 + clamp(1 - e.attackCd / e.d.rate, 0, 1) * 0.08);
       if (Math.random() < dt * 0.15 && dist < 20) g.audio.growl();
     }
 

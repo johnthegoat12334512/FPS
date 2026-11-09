@@ -90,7 +90,7 @@ class Game {
     this.scene.add(new THREE.HemisphereLight(0xc8d4e6, 0x3a342c, 0.75));
     const amb = new THREE.AmbientLight(0xffffff, 0.12); this.scene.add(amb);
     const L = [
-      [20, 66, 0xfff2dd], [30, 60, 0xdde8ff], // hub
+      [20, 66, 0xfff0d8], [30, 60, 0xd8e4ff], // hub
       [56, 56, 0xffe2b0], [80, 66, 0xffe2b0], [70, 52, 0xffd8a0], // bay
       [44, 30, 0xe0ecff], [70, 36, 0xe0ecff], [86, 28, 0xd0e0ff], // offices
       [12, 34, 0xc8ffd0], [22, 46, 0xc8ffd0], // hydroponics
@@ -98,9 +98,10 @@ class Game {
     ];
     this.zoneLights = [];
     for (const [x, z, c] of L) {
-      const p = new THREE.PointLight(c, 26, 30, 1.25);
+      const inten = z > 55 && x < 40 ? 14 : 26; // HQ is smaller & brighter-walled
+      const p = new THREE.PointLight(c, inten, 30, 1.25);
       p.position.set(x, 3.9, z);
-      p.userData.base = 26;
+      p.userData.base = inten;
       this.scene.add(p);
       this.zoneLights.push(p);
     }
