@@ -1,28 +1,44 @@
 # Grime Protocol — build checklist
 
-## Core
-- [x] Grid level with 5 zones, locked phase doors, crates, wall-buys and machines
+## Core (done)
+- [x] Grid level: HQ + 4 zones, phase doors, crates, wall-buys, machines
 - [x] Movement inspired by BO3 zombies: sprint, slide, slide-jump momentum, auto-mantle, crouch, ADS
-- [x] Cleaning tools: Vacuum (tank → Disposal Chute for credits), Hydro Lance (stains), Spore Torch (spores)
-- [x] Foam grenades that clean and do damage
-- [x] 8 guns incl. Longbow sniper + Marksman DMR (scoped), piercing, recoil, reload
-- [x] 5 knives styled after CS:GO (Combat, Bayonet, Huntsman, Karambit, Butterfly), with light slash, heavy stab and F-inspect
-- [x] Enemies: Sludger, Spitter (ranged), Brute (charge), flow-field pathing
-- [x] Spawn director scales with grime level + Bloom Surges
-- [x] 4 phases with 80% cleanliness goals + boss (Bloom Mother: wash shield, then shoot)
-- [x] Shop (weapons/knives/tools/upgrades/supplies), perks, Refinery (weapon upgrade machine), Supply Crate (random weapon)
-- [x] Power-up drops (Max Ammo, Double Credits, Insta-Clean, Purge)
-- [x] HUD, minimap with remaining grime, menus, settings, save/load
-- [x] Headless playtest covering every phase + boss
+- [x] Cleaning tools: Vacuum (tank → Disposal Chute), Hydro Lance (stains), Spore Torch (spores), Foam grenades
+- [x] 8 guns incl. Longbow sniper + Marksman DMR (scoped), pierce, recoil, ADS
+- [x] 5 knives styled after CS:GO with light/heavy attacks
+- [x] Enemies: Sludger, Spitter, Brute + flow-field pathing; director scales with grime; Bloom Surges
+- [x] 4 phases with 80% goals + Bloom Mother boss (wash shield → shoot)
+- [x] Shop, perks, Refinery (weapon upgrade machine), Supply Crate, power-ups, save/load, settings
 
-## Polish / bug-hunt list
-- [x] Shrink viewmodels (were ~2x too big)
-- [x] Stack credit popups so they don't overlap
-- [x] Victory screen uses game time (was a wall-clock timer)
-- [ ] Long random-input soak test (catch NaN / exceptions / stuck enemies)
-- [ ] Test death → respawn flow
-- [ ] Test every shop button, perk machine, refinery, crate, wall-buy ammo
-- [ ] Save → reload page → continue roundtrip test
-- [ ] Performance check (draw calls / FPS)
-- [ ] README with how to play
-- [ ] Final screenshots of every phase
+## Graphics / feel pass (done)
+- [x] Post-processing: bloom, ACES tone mapping, vignette, chromatic aberration, film grain, damage tint
+- [x] PBR materials, generated normal maps, image-based lighting, baked AO, light shafts
+- [x] Robotic arms (segmented, armour plates, glowing conduits, articulated fingers)
+- [x] Rounded, detailed gun models with moving parts (slides, bolts, pumps, lids, cylinders, mags)
+- [x] Unique per-weapon draw / fire / reload / inspect animations, shell-by-shell shotgun, bolt-cycling sniper, revolver
+- [x] Unique swing / draw / inspect per knife
+- [x] Ejected casings, muzzle flash lights
+- [x] Explosions: fireball, smoke, shockwave ring, light flash, scorch, shake
+- [x] Volatile Sludge barrels (chain reactions, blast also cleans)
+- [x] Wind: drifting dust, gusts with skittering debris, swaying foliage, flickering lights, wind audio
+- [x] Floating damage numbers (headshot / melee / fire / water / shield colours)
+- [x] Smaller, cleaner HUD + circular rotating minimap with compass; restyled menus & shop
+- [x] Detailed machines (terminal, perk machines with bottles, refinery, chute, service station, crate)
+- [x] Creatures with teeth, drips, chitin plates, horns, glowing cracks; detailed spore pods
+
+## Bug hunt (done)
+- [x] Viewmodels were ~2x too big
+- [x] Credit popups overlapped
+- [x] Victory screen used a wall-clock timer
+- [x] Spitter sac scale could go negative (giant green blob)
+- [x] Gun tricks swung the arms into the camera → tricks now spin the gun inside the hand
+- [x] Per-object point lights (34 lights total) → removed for performance
+- [x] Draw calls cut ~50% by merging static meshes
+- [x] Soak test: random play in every phase with deaths, every shop button, every interactable, save → reload → continue
+
+## Not done / ideas for later
+- [ ] Multiplayer co-op (paused at your request) + hosting it on a free server
+- [ ] Gamepad support
+- [ ] More enemy variety (an exploding bloater?) and a second boss phase
+- [ ] Real recorded audio instead of synthesized sound effects
+- [ ] Settings for keybinds
