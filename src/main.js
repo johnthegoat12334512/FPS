@@ -532,6 +532,7 @@ class Game {
       this.ui.update(dt);
       if (this.victoryT > 0) { this.victoryT -= dt; if (this.victoryT <= 0) this.showVictory(); }
     }
+    if (this.state === 'menu') { this.player.yaw += dt * 0.06; this.player.pitch = 0.05; }
     this.level.update(dt, this.time);
     this.grime.update(dt, this.time);
     this.particles.update(dt);
