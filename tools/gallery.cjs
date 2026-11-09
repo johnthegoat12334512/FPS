@@ -6,7 +6,7 @@ const out = process.argv[2] || 'screenshots/tmp'; fs.mkdirSync(out, { recursive:
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
   page.on('pageerror', e => console.log('ERR', e));
-  await page.addInitScript(() => { window.__TEST__ = true; try { localStorage.clear(); } catch (e) {} });
+  await page.addInitScript(() => { window.__TEST__ = true; window.__MANUAL__ = true; try { localStorage.clear(); } catch (e) {} });
   await page.goto('file://' + path.resolve('index.html'));
   await page.waitForFunction(() => window.GAME);
   await page.evaluate(() => { const g = window.GAME; g.input.forceLocked = true; document.getElementById('btnNew').click(); g.ui.bannerT = 0; });

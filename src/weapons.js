@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GUNS, KNIVES, REFINED_NAMES, UPGRADES, ECON } from './data.js';
-import { buildGun, buildKnife, buildTool } from './viewmodel.js';
+import { buildGun, buildKnife, buildTool, Casings } from './viewmodel.js';
+import { gunAnim, knifeAnim, toolAnim } from './anims.js';
 import { clamp, damp } from './rng.js';
 
 export const SLOTS = ['gun0', 'gun1', 'knife', 'vacuum', 'washer', 'torch'];
@@ -30,9 +31,16 @@ export class Weapons {
 
     this.vmScene = new THREE.Scene();
     this.vmCam = new THREE.PerspectiveCamera(62, 1, 0.01, 10);
-    this.vmScene.add(new THREE.HemisphereLight(0xdfe8ff, 0x403830, 1.6));
-    const dl = new THREE.DirectionalLight(0xffffff, 1.8); dl.position.set(1, 2, 1); this.vmScene.add(dl);
+    this.vmScene.add(new THREE.HemisphereLight(0xdfe8ff, 0x403830, 0.55));
+    const dl = new THREE.DirectionalLight(0xfff2e0, 1.6); dl.position.set(1, 2, 1); this.vmScene.add(dl);
+    const rim = new THREE.DirectionalLight(0x80b0ff, 0.9); rim.position.set(-1.5, 0.5, -1); this.vmScene.add(rim);
     this.vmRoot = new THREE.Group(); this.vmScene.add(this.vmRoot);
+    this.casings = new Casings(this.vmScene);
+    this.shots = 0; this.animFlags = {};
+    this.flashLight = new THREE.PointLight(0xffb060, 0, 9, 1.6);
+    game.scene.add(this.flashLight);
+    this.vmFlashLight = new THREE.PointLight(0xffb060, 0, 2, 1.5);
+    this.vmScene.add(this.vmFlashLight);
     this.models = {};
     this.knifeVM = null;
     this.rebuildModel();
@@ -168,13 +176,32 @@ export class Weapons {
     this.adsZoomFactor = 1 + (zoom - 1) * this.adsT * this.adsT;
 
     // reload
-    if (this.reloading) {
+    if (this.reloading && c.type === 'gun') {
       this.reloadT += dt;
-      if (this.reloadT >= c.def.reload * quick) {
-        const need = c.def.mag - c.st.mag;
-        const take = Math.min(need, c.st.reserve);
-        c.st.mag += take; c.st.reserve -= take;
-        this.reloading = false;
+      if (c.def.cls === 'shotgun') {
+        // shell-by-shell: open → shells → close (pump)
+        const open = 0.25 * quick, per = 0.42 * quick, close = 0.35;
+        this.phaseT += dt;
+        if (this.reloadPhase === 'open' && this.phaseT >= open) { this.reloadPhase = 'shell'; this.phaseT = 0; }
+        if (this.reloadPhase === 'shell') {
+          this.shellP = this.phaseT / per;
+          if (this.phaseT >= per) {
+            this.phaseT -= per;
+            if (c.st.mag < c.def.mag && c.st.reserve > 0) { c.st.mag++; c.st.reserve--; this.game.audio.reload(); }
+            if (c.st.mag >= c.def.mag || c.st.reserve <= 0) { this.reloadPhase = 'close'; this.phaseT = 0; }
+          }
+        }
+        if (this.reloadPhase === 'close' && this.phaseT >= close) this.reloading = false;
+        this.reloadP = 0.5;
+      } else {
+        const dur = c.def.reload * quick;
+        this.reloadP = Math.min(1, this.reloadT / dur);
+        if (this.reloadT >= dur) {
+          const need = c.def.mag - c.st.mag;
+          const take = Math.min(need, c.st.reserve);
+          c.st.mag += take; c.st.reserve -= take;
+          this.reloading = false;
+        }
       }
     }
 
@@ -190,12 +217,14 @@ export class Weapons {
     let usingTool = false;
     if (active && !this.switching) {
       if (input.hit('KeyV') && this.meleeT <= 0) this.startMelee(false, c.type !== 'knife');
-      if (input.hit('KeyF') && this.meleeT <= 0 && !this.reloading) this.inspectT = c.type === 'knife' && this.knife === 'butterfly' ? 2.6 : 2.0;
+      if (input.hit('KeyF') && this.meleeT <= 0 && !this.reloading) { this.inspectT = this.inspectDur(c); this.inspectLen = this.inspectT; }
       if (input.hit('KeyG') && this.grenades > 0 && this.throwT <= 0) this.throwGrenade();
 
       if (c.type === 'gun' && this.meleeT <= 0) {
         if (input.hit('KeyR') && !this.reloading && c.st.mag < c.def.mag && c.st.reserve > 0) this.startReload();
         const want = c.def.auto ? input.mouse[0] : input.mousePressed[0];
+        // shotgun reload can be interrupted by firing
+        if (want && this.reloading && c.def.cls === 'shotgun' && c.st.mag > 0 && this.reloadPhase === 'shell') { this.reloading = false; this.cool = 0; }
         if (want && !this.reloading && this.cool <= 0 && !p.mantle) {
           if (c.st.mag > 0) this.fire(c);
           else if (c.st.reserve > 0) this.startReload();
@@ -222,10 +251,15 @@ export class Weapons {
   }
 
   startReload() {
-    const c = this.current;
-    this.reloading = true; this.reloadT = 0; this.inspectT = 0;
+    this.reloading = true; this.reloadT = 0; this.inspectT = 0; this.reloadP = 0;
+    this.reloadPhase = 'open'; this.phaseT = 0; this.shellP = 0;
+    this.animFlags.ejected = false;
     this.game.audio.reload();
-    void c;
+  }
+  inspectDur(c) {
+    if (c.type === 'knife') return this.knife === 'butterfly' ? 2.6 : 2.2;
+    if (c.type === 'gun') return { cannon: 2.4, scatter: 2.0, mauler: 2.6, longbow: 2.6 }[c.st.id] || 2.2;
+    return 1.8;
   }
 
   // ---------------------------------------------------------------- guns
@@ -261,17 +295,25 @@ export class Weapons {
     this.kick = Math.min(0.12, this.kick + 0.03 + d.recoil * 0.6);
     this.kickRot = Math.min(0.3, this.kickRot + 0.05 + d.recoil * 1.5);
     const m = this.models[this.slot];
-    if (m && m.userData.flash) { m.userData.flash.visible = true; m.userData.flash.rotation.z = Math.random() * 6; this.flashT = 0.05; }
+    if (m && m.userData.flash) { m.userData.flash.visible = true; m.userData.flash.rotation.z = Math.random() * 6; m.userData.flash.scale.multiplyScalar(1); this.flashT = 0.05; }
+    this.shots++;
+    this.animFlags.shellOut = false; this.animFlags.boltEject = false;
+    if (m && !['scatter', 'longbow', 'cannon'].includes(c.st.id)) this.casings.eject(m);
+    this.flashLight.position.copy(muzzleW); this.flashLight.intensity = d.cls === 'sniper' || d.cls === 'shotgun' ? 30 : 16;
+    this.vmFlashLight.intensity = 3;
+    if (m && m.userData.muzzle) { const mp = new THREE.Vector3(); m.userData.muzzle.getWorldPosition(mp); this.vmFlashLight.position.copy(mp); }
     g.ui.crosshairKick();
   }
 
   hitscan(eye, dir, d, muzzleW) {
     const g = this.game;
     const world = g.level.raycast(eye.x, eye.y, eye.z, dir.x, dir.y, dir.z, 150);
-    const hits = g.enemies.raycast(eye, dir, world.dist);
+    const bh0 = g.barrels.raycast(eye, dir, world.dist);
+    if (bh0) { g.barrels.damage(bh0.barrel, d.dmg); }
+    const hits = g.enemies.raycast(eye, dir, bh0 ? bh0.dist : world.dist);
     let pierce = (d.pierce || 0) + 1;
     let mul = 1;
-    let endDist = world.dist;
+    let endDist = bh0 ? bh0.dist : world.dist;
     for (const h of hits) {
       if (pierce <= 0) { break; }
       const dmg = d.dmg * mul * (h.head ? d.head : 1);
@@ -321,6 +363,8 @@ export class Weapons {
       g.enemies.damage(target, dmg, { kind: 'melee', point: target.pos.clone().setY(target.pos.y + 1.1), dir: fwd });
       g.audio.slash();
     } else {
+      const brl = g.barrels.raycast(eye, fwd, range + 0.5);
+      if (brl) { g.barrels.damage(brl.barrel, 999); }
       const bh = g.enemies.bossRaycast(eye, fwd, range + 0.8);
       if (bh) { g.enemies.damageBoss(k.dmg * (this.meleeHeavy ? 1.85 : 1), bh.point, 'melee'); g.audio.slash(); }
       else {
@@ -382,13 +426,14 @@ export class Weapons {
     if (kind === 'torch') {
       if (this.fuel <= 0) { g.ui.flash('OUT OF FUEL — refill at a Service Station', '#ff8a3a'); g.audio.deny(); return false; }
       this.fuel = Math.max(0, this.fuel - 10 * dt);
-      for (let i = 0; i < 5; i++) g.particles.flame(nozzle.x, nozzle.y, nozzle.z, fwd.x, fwd.y, fwd.z);
+      for (let i = 0; i < 4; i++) g.particles.flame(nozzle.x, nozzle.y, nozzle.z, fwd.x, fwd.y, fwd.z);
       const range = 6.5;
       g.grime.burn(zones, eye.x, eye.y - 0.2, eye.z, fwd.x, fwd.y, fwd.z, range, Math.cos(0.35), 50 * this.cleanMul() * dt, g.level, (s) => {
         g.addCredits(ECON.spore, null, true); g.stats.spores++; g.audio.pop();
         g.particles.burst(s.x, s.y + 0.2, s.z, 0xd060ff, 25, 4, 0.1);
       });
       g.enemies.coneDamage(eye, fwd, range, Math.cos(0.35), 95 * dt, 'fire');
+      for (const b of g.barrels.list) { if (!b.alive) continue; const vx = b.x - eye.x, vz = b.z - eye.z, dd = Math.hypot(vx, vz); if (dd < range && (vx * fwd.x + vz * fwd.z) / dd > Math.cos(0.35)) g.barrels.damage(b, 25 * dt); }
       return true;
     }
     return false;
@@ -434,27 +479,28 @@ export class Weapons {
   explodeFoam(x, y, z) {
     const g = this.game;
     g.audio.boom();
-    g.particles.burst(x, y, z, 0xbfefff, 80, 9, 0.22);
+    g.effects.explosion(x, y, z, 4.2, 'foam');
     for (let i = 0; i < 40; i++) g.particles.norm.spawn(x + (Math.random() - 0.5) * 3, y, z + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, Math.random() * 2, (Math.random() - 0.5) * 3, 1.5, 0.5, 0.95, 0.98, 1, 0.6, 0.5, 1.5, 2);
+    for (const b of g.barrels.list) if (b.alive && Math.hypot(b.x - x, b.z - z) < 4.5) g.barrels.damage(b, 999);
     g.grime.foam(g.activeGrimeZones(), x, z, 4.2,
       () => { g.addCredits(ECON.stain, null, true); g.stats.stains++; },
       (s) => { g.addCredits(ECON.spore, null, true); g.stats.spores++; void s; });
     g.enemies.radiusDamage(x, y, z, 5, 320 * (1 + 0.5 * (g.phase - 1)));
     g.enemies.washBoss(0, null, x, z, 6, 40);
-    const pd = g.player.pos.distanceTo(new THREE.Vector3(x, y, z));
-    if (pd < 6) g.shake = Math.max(g.shake, 0.3);
   }
 
   // ---------------------------------------------------------------- viewmodel animation
   animate(dt, input, c) {
     const g = this.game, p = g.player;
     const m = this.models[this.slot];
-    // sway
     this.sway.x = damp(this.sway.x, clamp(-input.dx * 0.0006, -0.05, 0.05), 10, dt);
     this.sway.y = damp(this.sway.y, clamp(input.dy * 0.0006, -0.05, 0.05), 10, dt);
     this.kick = damp(this.kick, 0, 14, dt);
     this.kickRot = damp(this.kickRot, 0, 12, dt);
     if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0 && m && m.userData.flash) m.userData.flash.visible = false; }
+    this.flashLight.intensity = Math.max(0, this.flashLight.intensity - dt * 400);
+    this.vmFlashLight.intensity = Math.max(0, this.vmFlashLight.intensity - dt * 60);
+    this.casings.update(dt);
 
     const ads = this.adsT;
     const sightY = m ? m.userData.sightY : 0.05;
@@ -462,95 +508,53 @@ export class Weapons {
     const adsPos = new THREE.Vector3(0, -sightY, -0.2);
     const pos = base.clone().lerp(adsPos, ads);
     const rot = new THREE.Euler(0, 0, 0);
+    const o = { pos, rot };
 
-    // bob
     const bobA = p.bobAmt * (1 - ads * 0.85);
     pos.x += Math.cos(p.bob) * 0.012 * bobA;
     pos.y += Math.abs(Math.sin(p.bob)) * 0.014 * bobA;
-    // sway
+    // idle breathing
+    pos.y += Math.sin(g.time * 1.6) * 0.0025 * (1 - ads);
+    rot.z += Math.sin(g.time * 0.8) * 0.006 * (1 - ads);
     pos.x += this.sway.x * (1 - ads * 0.7); pos.y += this.sway.y * (1 - ads * 0.7);
     rot.y += this.sway.x * 1.5;
-    // sprint pose
     this.sprintT = damp(this.sprintT || 0, p.sprinting && this.meleeT <= 0 && !this.reloading ? 1 : 0, 10, dt);
     const sp = this.sprintT;
     if (c.type === 'gun') { pos.x += 0.04 * sp; pos.y -= 0.05 * sp; rot.y += 0.6 * sp; rot.x -= 0.2 * sp; rot.z += 0.25 * sp; }
     else { pos.y -= 0.04 * sp; rot.x -= 0.35 * sp; }
     pos.y += Math.sin(p.bob * 2) * 0.02 * sp;
-    // slide / mantle tilt
     if (p.sliding) { rot.z += 0.2; pos.x -= 0.03; }
     if (p.mantle) { pos.y -= 0.12; rot.x -= 0.4; }
-    // recoil
-    pos.z += this.kick * (1 - ads * 0.5);
-    rot.x += this.kickRot * (1 - ads * 0.6);
-    // reload
-    if (this.reloading) {
-      const t = this.reloadT / (c.def.reload * (g.perks.quickhands ? 0.5 : 1));
-      const s = Math.sin(Math.min(1, t) * Math.PI);
-      pos.y -= 0.08 * s; rot.x -= 0.5 * s; rot.z += 0.6 * s;
-      if (m && m.userData.pump) m.userData.pump.position.z = -GUNS[c.st.id].len * 0.6 + Math.sin(t * Math.PI * 6) * 0.03;
-    }
-    // shotgun pump after shot
-    if (m && m.userData.pump && !this.reloading) {
-      const since = g.time - this.lastShot;
-      m.userData.pump.position.z = -GUNS[c.st.id].len * 0.6 + (since > 0.12 && since < 0.45 ? Math.sin((since - 0.12) / 0.33 * Math.PI) * 0.07 : 0);
-    }
-    // switching
-    if (this.switching) { const t = 1 - this.switchT; pos.y -= t * t * 0.35; rot.x -= t * 0.6; }
+    pos.z += this.kick * (1 - ads * 0.5) * 0.4;
+    rot.x += this.kickRot * (1 - ads * 0.6) * 0.3;
 
-    // tool effects
-    if (c.type === 'tool' && m) {
-      if (this.toolActive) { pos.x += (Math.random() - 0.5) * 0.004; pos.y += (Math.random() - 0.5) * 0.004; }
+    const dT = this.switching ? 1 - this.switchT : 0;
+    const iP = this.inspectT > 0 ? 1 - this.inspectT / (this.inspectLen || 2) : -1;
+    const fx = {
+      casing: (model, shell) => this.casings.eject(model, shell),
+      casingAt: (model) => this.casings.eject(model),
+    };
+    let showQuickKnife = false;
+    if (c.type === 'gun' && m) {
+      gunAnim(m, c.st.id, {
+        fT: g.time - this.lastShot, rP: this.reloading ? (this.reloadP || 0) : -1, dT, iP, shots: this.shots, mag: c.st.mag,
+        reloadPhase: this.reloadPhase, phaseT: this.phaseT || 0, shellP: this.shellP || 0, reloadTime: this.reloadT, flags: this.animFlags, time: g.time,
+      }, o, fx);
+      if (ads > 0.01) { rot.x *= 1 - ads * 0.85; rot.y *= 1 - ads * 0.85; rot.z *= 1 - ads * 0.85; }
+    } else if (c.type === 'knife' && m) {
+      const t = this.meleeT > 0 && !this.quickMelee ? 1 - this.meleeT / this.meleeDur : -1;
+      knifeAnim(m, m.userData.kind, { mT: t, heavy: this.meleeHeavy, alt: this.swingAlt, dT, iP }, o);
+    } else if (c.type === 'tool' && m) {
+      toolAnim(m, c.kind, { active: this.toolActive, full: this.tank >= this.tankCap() - 0.01, time: g.time, dT, iP }, o);
       if (m.userData.fill) {
-        if (c.kind === 'vacuum') { const f = this.tank / this.tankCap(); m.userData.fill.scale.z = Math.max(0.02, f); m.userData.fill.material.color.setHex(f > 0.95 ? 0xff4a3a : 0x6aff5a); }
-        else if (c.kind === 'washer') m.userData.fill.material.opacity = 0.25 + 0.6 * (this.water / this.resCap());
+        if (c.kind === 'vacuum') { const f = Math.max(0.02, this.tank / this.tankCap()); m.userData.fill.scale.y = f; }
+        else if (c.kind === 'washer') m.userData.fill.material.opacity = 0.2 + 0.6 * (this.water / this.resCap());
       }
       if (m.userData.pilot) m.userData.pilot.scale.setScalar(this.toolActive ? 2.5 : 1 + Math.sin(g.time * 30) * 0.2);
     }
-
-    // inspect (CS:GO style)
-    if (this.inspectT > 0) {
-      const dur = c.type === 'knife' && this.knife === 'butterfly' ? 2.6 : 2.0;
-      const t = 1 - this.inspectT / dur;
-      const e = Math.sin(t * Math.PI);
-      if (c.type === 'knife') {
-        const kind = KNIVES[this.knife].kind;
-        if (kind === 'butterfly') {
-          rot.z += e * 0.8; pos.x -= e * 0.1;
-          const spin = t * Math.PI * 8;
-          if (m && m.userData.h1) { m.userData.h1.rotation.x = Math.sin(spin) * Math.PI; m.userData.h2.rotation.x = -Math.sin(spin) * Math.PI; }
-          if (m) m.userData.holder.rotation.z = Math.sin(spin * 0.5) * 0.5;
-        } else if (kind === 'karambit') {
-          if (m) m.userData.holder.rotation.z = t < 0.7 ? t / 0.7 * Math.PI * 4 : 0;
-          rot.y -= e * 0.6; pos.x -= e * 0.08;
-        } else {
-          rot.y -= e * 1.2; rot.z += e * 0.9; pos.x -= e * 0.12; pos.y += e * 0.04;
-          if (m) m.userData.holder.rotation.z = Math.sin(t * Math.PI * 2) * 0.3;
-        }
-      } else {
-        rot.y -= e * 0.9; rot.z += e * 0.6; pos.x -= e * 0.1; pos.y += e * 0.03;
-      }
-    } else if (m && m.userData.holder) {
-      m.userData.holder.rotation.z = 0;
-      if (m.userData.h1) { m.userData.h1.rotation.x = 0; m.userData.h2.rotation.x = 0; }
-    }
-
-    // knife swings
-    let showQuickKnife = false;
     if (this.meleeT > 0) {
-      const t = 1 - this.meleeT / this.meleeDur;
-      if (this.quickMelee) {
-        showQuickKnife = true;
-      } else {
-        if (this.meleeHeavy) {
-          const back = t < 0.4 ? t / 0.4 : 1, thrust = t < 0.4 ? 0 : t < 0.6 ? (t - 0.4) / 0.2 : 1 - (t - 0.6) / 0.4;
-          pos.z += back * 0.08 - thrust * 0.25; pos.x -= thrust * 0.12; rot.x += thrust * 0.2 - back * 0.2;
-        } else {
-          const sw = Math.sin(t * Math.PI);
-          const dir = this.swingAlt ? -1 : 1;
-          rot.z += dir * (t - 0.5) * 2.2; rot.y += sw * 0.9 * dir; pos.x -= sw * 0.18; pos.y += sw * 0.05; pos.z -= sw * 0.08;
-        }
-      }
-      if (t > 0.98) this.swingAlt = !this.swingAlt;
+      if (this.quickMelee) showQuickKnife = true;
+      if (1 - this.meleeT / this.meleeDur > 0.97) this.swingAlt = !this.swingAlt;
     }
 
     if (m) {
@@ -558,16 +562,16 @@ export class Weapons {
       m.rotation.copy(rot);
       m.visible = !(c.type === 'gun' && c.def.scope && ads > 0.9) && !showQuickKnife;
     }
-    // quick-melee knife
     if (this.knifeVM) {
       if (showQuickKnife) {
         if (this.knifeVM.parent !== this.vmRoot) this.vmRoot.add(this.knifeVM);
         const t = 1 - this.meleeT / this.meleeDur;
-        const sw = Math.sin(t * Math.PI);
-        this.knifeVM.position.set(0.15 - sw * 0.2, -0.2 + sw * 0.06, -0.38 - sw * 0.1);
-        this.knifeVM.rotation.set(0, sw * 0.9, (t - 0.5) * 2.2);
+        const ko = { pos: new THREE.Vector3(0.15, -0.17, -0.34), rot: new THREE.Euler() };
+        knifeAnim(this.knifeVM, this.knifeVM.userData.kind, { mT: t, heavy: false, alt: false, dT: 0, iP: -1 }, ko);
+        ko.pos.y -= Math.pow(1 - Math.sin(t * Math.PI), 3) * 0.15;
+        this.knifeVM.position.copy(ko.pos); this.knifeVM.rotation.copy(ko.rot);
         this.knifeVM.visible = true;
-      } else if (this.knifeVM.parent === this.vmRoot && this.slot !== 'knife') {
+      } else if (this.knifeVM.parent === this.vmRoot) {
         this.vmRoot.remove(this.knifeVM);
       }
     }

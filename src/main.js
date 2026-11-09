@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { Level, CELL, ZONE_KEYS, ZONE_INFO } from './level.js';
 import { Grime } from './grime.js';
 import { Particles } from './particles.js';
-import { Effects } from './effects.js';
+import { Effects, Ambience, Barrels } from './effects.js';
 import { Enemies } from './enemies.js';
 import { Weapons } from './weapons.js';
 import { Player } from './player.js';
 import { UI } from './ui.js';
 import { Audio } from './audio.js';
 import { Input } from './input.js';
+import { Renderer } from './render.js';
 import { GUNS, KNIVES, TOOLS, UPGRADES, PERKS, PHASES, ECON, CRATE_POOL } from './data.js';
 
 const SAVE_KEY = 'grimeProtocol.save.v1';
@@ -34,7 +35,7 @@ class Game {
     this.scene.fog = new THREE.Fog(0x14181e, 18, 75);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 220);
 
-    this.settings = { sens: 1, fov: 95, vol: 0.6, invert: false, showFps: false };
+    this.settings = { sens: 1, fov: 95, vol: 0.6, invert: false, showFps: false, quality: 'high' };
     try { Object.assign(this.settings, JSON.parse(store.get(SET_KEY) || '{}')); } catch (e) { /* ignore */ }
 
     this.time = 0; this.fps = 60; this.shake = 0;
@@ -55,11 +56,15 @@ class Game {
     this.level = new Level(this.scene);
     this.grime = new Grime(this.scene, this.level);
     this.particles = new Particles(this.scene);
-    this.effects = new Effects(this.scene);
+    this.effects = new Effects(this);
     this.player = new Player(this);
     this.weapons = new Weapons(this);
     this.enemies = new Enemies(this);
     this.ui = new UI(this);
+    this.post = new Renderer(this);
+    this.ambience = new Ambience(this);
+    this.ambience.flickerLights = [this.zoneLights[4], this.zoneLights[7], this.zoneLights[9], this.zoneLights[11]];
+    this.barrels = new Barrels(this);
     this.buildInteractables();
 
     const st = this.level.startCell;
@@ -82,8 +87,8 @@ class Game {
   }
 
   setupLights() {
-    this.scene.add(new THREE.HemisphereLight(0xc8d4e6, 0x3a342c, 1.15));
-    const amb = new THREE.AmbientLight(0xffffff, 0.35); this.scene.add(amb);
+    this.scene.add(new THREE.HemisphereLight(0xc8d4e6, 0x3a342c, 0.75));
+    const amb = new THREE.AmbientLight(0xffffff, 0.12); this.scene.add(amb);
     const L = [
       [20, 66, 0xfff2dd], [30, 60, 0xdde8ff], // hub
       [56, 56, 0xffe2b0], [80, 66, 0xffe2b0], [70, 52, 0xffd8a0], // bay
@@ -91,16 +96,20 @@ class Game {
       [12, 34, 0xc8ffd0], [22, 46, 0xc8ffd0], // hydroponics
       [48, 12, 0xff9a5a], [30, 10, 0xff7a3a], [66, 14, 0xff7a3a], // reactor
     ];
+    this.zoneLights = [];
     for (const [x, z, c] of L) {
       const p = new THREE.PointLight(c, 26, 30, 1.25);
       p.position.set(x, 3.9, z);
+      p.userData.base = 26;
       this.scene.add(p);
+      this.zoneLights.push(p);
     }
   }
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
+    if (this.post) this.post.setSize(w, h);
     this.camera.aspect = w / h;
     this.weapons.vmCam.aspect = w / h; this.weapons.vmCam.updateProjectionMatrix();
     this.particles.setScale(h * this.renderer.getPixelRatio());
@@ -381,6 +390,7 @@ class Game {
     };
     bind('sens', 'sens'); bind('fov', 'fov', null, () => this.updateFov()); bind('vol', 'vol', null, () => this.audio.setVolume(this.settings.vol));
     bind('invert', 'invert'); bind('showFps', 'showFps');
+    $('quality').onchange = () => { this.settings.quality = $('quality').value; this.post.setQuality(this.settings.quality); store.set(SET_KEY, JSON.stringify(this.settings)); };
     const diff = document.querySelectorAll('input[name=diff]');
     diff.forEach(r => r.onchange = () => { this.difficulty = parseFloat(r.value); });
   }
@@ -391,6 +401,7 @@ class Game {
     $('fov').value = s.fov; $('fovVal').textContent = s.fov;
     $('vol').value = s.vol; $('volVal').textContent = Math.round(s.vol * 100) + '%';
     $('invert').checked = !!s.invert; $('showFps').checked = !!s.showFps;
+    $('quality').value = s.quality || 'high';
   }
 
   newGame() {
@@ -524,6 +535,8 @@ class Game {
     this.grime.update(dt, this.time);
     this.particles.update(dt);
     this.effects.update(dt);
+    this.ambience.update(dt);
+    if (playing) this.barrels.update(dt);
     this.input.endFrame();
   }
   render() {
@@ -534,22 +547,18 @@ class Game {
       this.shake = Math.max(0, this.shake - 0.02);
     }
     this.updateFov();
-    const r = this.renderer;
-    r.clear();
-    r.render(this.scene, this.camera);
-    if (this.state !== 'menu') {
-      r.clearDepth();
-      r.render(this.weapons.vmScene, this.weapons.vmCam);
-    }
+    this.post.render(this.lastDt || 0.016, this.state !== 'menu');
   }
   frame(now) {
     const dt = Math.min(0.05, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     if (dt > 0) this.fps = this.fps * 0.95 + (1 / dt) * 0.05;
+    this.lastDt = dt;
     this.step(dt);
     this.render();
   }
   run() {
+    if (window.__MANUAL__) return; // test harness drives step()/render() itself
     const loop = (t) => {
       try { this.frame(t); } catch (e) { showError(e); }
       requestAnimationFrame(loop);

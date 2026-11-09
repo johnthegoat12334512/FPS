@@ -125,7 +125,7 @@ export class Particles {
   flame(x, y, z, dx, dy, dz) {
     const s = 7 + Math.random() * 3;
     const t = Math.random();
-    this.add.spawn(x, y, z, (dx + (Math.random() - 0.5) * 0.25) * s, (dy + (Math.random() - 0.3) * 0.25) * s, (dz + (Math.random() - 0.5) * 0.25) * s, 0.45 + Math.random() * 0.2, 0.12, 1, 0.45 + t * 0.4, 0.1, 0.9, -2, 1.5, 4);
+    this.add.spawn(x, y, z, (dx + (Math.random() - 0.5) * 0.25) * s, (dy + (Math.random() - 0.3) * 0.25) * s, (dz + (Math.random() - 0.5) * 0.25) * s, 0.4 + Math.random() * 0.2, 0.1, 1, 0.35 + t * 0.35, 0.08, 0.38, -2, 1.5, 4);
   }
   suck(x, y, z, tx, ty, tz, color = 0x8a7a5a) {
     const r = ((color >> 16) & 255) / 255, g = ((color >> 8) & 255) / 255, b = (color & 255) / 255;

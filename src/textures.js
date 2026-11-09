@@ -155,3 +155,32 @@ export function camoTexture() {
   g.globalAlpha = 1;
   return toTex(c);
 }
+
+// Derive a tangent-space normal map from a colour canvas texture (luminance as height)
+export function normalFromTexture(tex, strength = 2.0) {
+  const src = tex.image;
+  const w = src.width, h = src.height;
+  const sctx = src.getContext('2d');
+  const data = sctx.getImageData(0, 0, w, h).data;
+  const hgt = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) hgt[i] = (data[i * 4] * 0.3 + data[i * 4 + 1] * 0.59 + data[i * 4 + 2] * 0.11) / 255;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(w, h);
+  const H = (x, y) => hgt[((y + h) % h) * w + ((x + w) % w)];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const dx = (H(x + 1, y) - H(x - 1, y)) * strength;
+    const dy = (H(x, y + 1) - H(x, y - 1)) * strength;
+    const l = Math.hypot(dx, dy, 1);
+    const i = (y * w + x) * 4;
+    out.data[i] = (-dx / l * 0.5 + 0.5) * 255;
+    out.data[i + 1] = (dy / l * 0.5 + 0.5) * 255;
+    out.data[i + 2] = (1 / l * 0.5 + 0.5) * 255;
+    out.data[i + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}

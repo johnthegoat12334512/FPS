@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { floorTexture, wallTexture, labelTexture, wallbuyTexture } from './textures.js';
+import { floorTexture, wallTexture, labelTexture, wallbuyTexture, normalFromTexture } from './textures.js';
 import { GUNS, PERKS } from './data.js';
 
 export const CELL = 2;
@@ -165,8 +165,10 @@ export class Level {
     const floorMats = {}, wallMats = {};
     for (const k of ZONE_KEYS) {
       const kind = ZONE_INFO[k].tex;
-      floorMats[k] = new THREE.MeshLambertMaterial({ map: floorTexture(kind, 11 + k.charCodeAt(0)) });
-      wallMats[k] = new THREE.MeshLambertMaterial({ map: wallTexture(kind, 23 + k.charCodeAt(0)) });
+      const ft = floorTexture(kind, 11 + k.charCodeAt(0)), wt = wallTexture(kind, 23 + k.charCodeAt(0));
+      const metal = kind === 'reactor';
+      floorMats[k] = new THREE.MeshStandardMaterial({ map: ft, normalMap: normalFromTexture(ft, 3), roughness: metal ? 0.42 : kind === 'office' ? 0.95 : 0.62, metalness: metal ? 0.65 : 0.08, vertexColors: true });
+      wallMats[k] = new THREE.MeshStandardMaterial({ map: wt, normalMap: normalFromTexture(wt, 2.5), roughness: metal ? 0.5 : 0.78, metalness: metal ? 0.5 : 0.05, vertexColors: true });
     }
     const floorQuads = {}, wallQuads = {};
     for (const k of ZONE_KEYS) { floorQuads[k] = []; wallQuads[k] = []; }
@@ -193,7 +195,7 @@ export class Level {
     // ceiling
     const allCells = [];
     for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) if (this.type[this.idx(x, y)] !== 1) allCells.push([x, y]);
-    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x23262b });
+    const ceilMat = new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.9, vertexColors: true });
     this.group.add(new THREE.Mesh(this._floorGeo(allCells, WALL_H, false), ceilMat));
 
     // ceiling light panels
@@ -203,15 +205,30 @@ export class Level {
       if (this.type[i] !== 1 && (x % 3 === 1) && (y % 3 === 1)) lights.push([x, y]);
     }
     const panelGeo = new THREE.BoxGeometry(0.9, 0.05, 0.32);
-    const panelMat = new THREE.MeshBasicMaterial({ color: 0xe8e2d0 });
+    const panelMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.5, 2.2) });
     const panels = new THREE.InstancedMesh(panelGeo, panelMat, lights.length);
     const m = new THREE.Matrix4();
     lights.forEach(([x, y], n) => { const [cx, cz] = this.center(x, y); m.makeTranslation(cx, WALL_H - 0.03, cz); panels.setMatrixAt(n, m); });
     this.group.add(panels);
+    this.lightCells = lights;
+    // volumetric light shafts under every other panel
+    const shaftCells = lights.filter((_, n) => n % 2 === 0);
+    const shaftGeo = new THREE.CylinderGeometry(0.35, 1.5, WALL_H - 0.1, 16, 1, true);
+    shaftGeo.translate(0, -(WALL_H - 0.1) / 2, 0);
+    const shaftMat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      uniforms: { time: { value: 0 } },
+      vertexShader: 'varying float vY; varying vec3 vN; varying vec3 vV; void main(){ vY = uv.y; vec4 mv = modelViewMatrix * instanceMatrix * vec4(position,1.0); vN = normalize(normalMatrix * mat3(instanceMatrix) * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform float time; varying float vY; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 1.5); float a = vY * vY * 0.07 * edge; gl_FragColor = vec4(1.0, 0.95, 0.85, a); }',
+    });
+    const shafts = new THREE.InstancedMesh(shaftGeo, shaftMat, shaftCells.length);
+    shaftCells.forEach(([x, y], n) => { const [cx, cz] = this.center(x, y); m.makeTranslation(cx, WALL_H - 0.05, cz); shafts.setMatrixAt(n, m); });
+    shafts.renderOrder = 5;
+    this.group.add(shafts);
 
     // crates
     const crateTex = this._crateTexture();
-    const crateMat = new THREE.MeshLambertMaterial({ map: crateTex });
+    const crateMat = new THREE.MeshStandardMaterial({ map: crateTex, normalMap: normalFromTexture(crateTex, 4), roughness: 0.8 });
     const crates = [], talls = [];
     for (let i = 0; i < this.type.length; i++) { if (this.type[i] === 2) crates.push(i); if (this.type[i] === 3) talls.push(i); }
     const cg = new THREE.BoxGeometry(CELL * 0.98, H_CRATE, CELL * 0.98);
@@ -219,7 +236,7 @@ export class Level {
     crates.forEach((i, n) => { const x = i % this.W, y = (i / this.W) | 0; const [cx, cz] = this.center(x, y); m.makeTranslation(cx, H_CRATE / 2, cz); ci.setMatrixAt(n, m); });
     this.group.add(ci);
     const tg = new THREE.BoxGeometry(CELL * 0.98, H_TALL, CELL * 0.98);
-    const tallMat = new THREE.MeshLambertMaterial({ map: crateTex, color: 0x9fb0c0 });
+    const tallMat = new THREE.MeshStandardMaterial({ map: crateTex, normalMap: crateMat.normalMap, color: 0x9fb0c0, roughness: 0.6, metalness: 0.3 });
     const ti = new THREE.InstancedMesh(tg, tallMat, talls.length);
     talls.forEach((i, n) => { const x = i % this.W, y = (i / this.W) | 0; const [cx, cz] = this.center(x, y); m.makeTranslation(cx, H_TALL / 2, cz); ti.setMatrixAt(n, m); });
     this.group.add(ti);
@@ -340,12 +357,22 @@ export class Level {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
 
+  _cornerAO(cx, cz) { // corner at grid point (cx,cz): count solid cells around it
+    let n = 0;
+    for (const [dx, dz] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) {
+      const h = this.hAt(cx + dx, cz + dz);
+      if (h > 50) n += 1; else if (h > 0) n += 0.5;
+    }
+    return n;
+  }
+
   _floorGeo(cells, y, up) {
-    const pos = [], uv = [], nor = [], index = [];
+    const pos = [], uv = [], nor = [], index = [], col = [];
     let v = 0;
     for (const [x, z] of cells) {
       const x0 = x * CELL, z0 = z * CELL, x1 = x0 + CELL, z1 = z0 + CELL;
       pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1);
+      for (const [cx, cz] of [[x, z], [x + 1, z], [x + 1, z + 1], [x, z + 1]]) { const a = 1 - this._cornerAO(cx, cz) * (up ? 0.17 : 0.1); col.push(a, a, a); }
       uv.push(0, 0, 1, 0, 1, 1, 0, 1);
       const ny = up ? 1 : -1;
       for (let k = 0; k < 4; k++) nor.push(0, ny, 0);
@@ -356,12 +383,13 @@ export class Level {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.setIndex(index);
     return geo;
   }
 
   _wallGeo(quads) {
-    const pos = [], uv = [], nor = [], index = [];
+    const pos = [], uv = [], nor = [], index = [], col = [];
     let v = 0;
     const segs = Math.round(WALL_H / CELL * 2) / 2; // texture vertical repeats
     for (const [x, z, dx, dz] of quads) {
@@ -375,6 +403,7 @@ export class Level {
       pos.push(ax, 0, az, bx, 0, bz, bx, WALL_H, bz, ax, WALL_H, az);
       uv.push(0, 0, 1, 0, 1, WALL_H / CELL, 0, WALL_H / CELL);
       for (let k = 0; k < 4; k++) nor.push(dx, 0, dz);
+      col.push(0.62, 0.62, 0.62, 0.62, 0.62, 0.62, 1, 1, 1, 1, 1, 1);
       // winding so the face points along (dx,dz)
       index.push(v, v + 2, v + 1, v, v + 3, v + 2);
       v += 4;
@@ -384,6 +413,7 @@ export class Level {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.setIndex(index);
     geo.computeBoundingSphere();
     return geo;

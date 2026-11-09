@@ -101,7 +101,10 @@ export class Grime {
       this._addStain(Z, x, y, z, -dx, 0, -dz, size, (rng() * 6) | 0, rng() * 6.28, 70 + size * 30);
     }
     // ---- spore pods
-    const sporeMat = new THREE.MeshLambertMaterial({ color: 0xb04ad0, emissive: 0x5a1070 });
+    this.sporeMats = [0, 1].map(() => new THREE.MeshStandardMaterial({ color: 0x8a2ab0, emissive: 0x7a10a0, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.05 }));
+    const noduleMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.6, 2.8) });
+    const stalkMat = new THREE.MeshStandardMaterial({ color: 0x3a2a40, roughness: 0.7 });
+    if (!this.noduleGeo) { this.noduleGeo = new THREE.SphereGeometry(1, 8, 6); this.stalkGeo = new THREE.CylinderGeometry(0.05, 0.09, 1, 6); }
     for (let s = 0; s < nSpore; s++) {
       const i = pick(); const cx = i % L.W, cz = (i / L.W) | 0;
       const cluster = 1 + ((rng() * 3) | 0);
@@ -109,11 +112,20 @@ export class Grime {
       const grp = new THREE.Group();
       grp.position.set(bx, 0, bz);
       for (let k = 0; k < cluster; k++) {
-        const m = new THREE.Mesh(this.sporeGeo, sporeMat);
-        const r = 0.22 + rng() * 0.22;
-        m.scale.setScalar(r);
-        m.position.set((rng() - 0.5) * 0.6, r * 0.8, (rng() - 0.5) * 0.6);
+        const r = 0.2 + rng() * 0.2;
+        const px = (rng() - 0.5) * 0.6, pz = (rng() - 0.5) * 0.6, h = r * 0.6 + rng() * 0.25;
+        const stalk = new THREE.Mesh(this.stalkGeo, stalkMat); stalk.scale.set(r * 1.2, h, r * 1.2); stalk.position.set(px, h / 2, pz); grp.add(stalk);
+        const m = new THREE.Mesh(this.sporeGeo, this.sporeMats[(s + k) % 2]);
+        m.scale.set(r, r * 1.25, r);
+        m.position.set(px, h + r * 0.9, pz);
         grp.add(m);
+        for (let n = 0; n < 5; n++) {
+          const a = rng() * 6.28, e = (rng() - 0.3) * 1.4;
+          const nd = new THREE.Mesh(this.noduleGeo, noduleMat);
+          nd.scale.setScalar(r * (0.1 + rng() * 0.08));
+          nd.position.set(px + Math.cos(a) * Math.cos(e) * r, h + r * 0.9 + Math.sin(e) * r * 1.25, pz + Math.sin(a) * Math.cos(e) * r);
+          grp.add(nd);
+        }
       }
       this.group.add(grp);
       const spore = { id: s, x: bx, y: 0.35, z: bz, hp: 60, max: 60, mesh: grp, done: false, phase: rng() * 6.28 };
@@ -254,6 +266,7 @@ export class Grime {
   }
 
   update(dt, time) {
+    if (this.sporeMats) { this.sporeMats[0].emissiveIntensity = 0.45 + Math.sin(time * 2.4) * 0.35; this.sporeMats[1].emissiveIntensity = 0.45 + Math.sin(time * 2.4 + 2) * 0.35; }
     for (const zk in this.zones) {
       for (const s of this.zones[zk].spores) {
         if (s.done) continue;

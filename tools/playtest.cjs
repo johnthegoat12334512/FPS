@@ -14,7 +14,7 @@ const url = 'file://' + path.join(__dirname, '..', 'index.html');
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(String(e.stack || e)));
-  await page.addInitScript(() => { window.__TEST__ = true; try { localStorage.clear(); } catch (e) {} });
+  await page.addInitScript(() => { window.__TEST__ = true; window.__MANUAL__ = true; try { localStorage.clear(); } catch (e) {} });
   await page.goto(url);
   await page.waitForFunction(() => window.GAME, null, { timeout: 30000 });
 
@@ -268,12 +268,13 @@ const url = 'file://' + path.join(__dirname, '..', 'index.html');
     const aim = () => { const dx = b.x - P.pos.x, dz = b.z - P.pos.z, d = Math.hypot(dx, dz); P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(2.1 - P.pos.y - P.eye, d); P.recoilPitch = 0; };
     for (let k = 0; k < 60 * 25 && b.shield > 0; k++) { aim(); W.water = 300; g.step(1 / 60); }
     const shield = b.shield;
+    const dbg = { slot: W.slot, toolActive: W.toolActive, water: W.water, pos: [P.pos.x, P.pos.y, P.pos.z], b: [b.x, b.z], hp: P.hp, mantle: !!P.mantle, locked: g.input.isLocked(), state: g.state, sw: W.switching, melee: W.meleeT };
     i.mouse[0] = false;
     W.switchTo('gun1'); for (let k = 0; k < 30; k++) g.step(1 / 60);
     b.hp = 300;
     for (let k = 0; k < 600 && b.alive; k++) { aim(); b.lastWash = g.time; i.mousePressed[0] = k % 50 === 0; const c = W.current; if (c.st) { c.st.mag = Math.max(c.st.mag, 1); } g.step(1 / 60); }
     for (let k = 0; k < 60 * 4; k++) g.step(1 / 60);
-    return { shield, alive: b.alive, victory: g.victory, state: g.state };
+    return { shield, alive: b.alive, victory: g.victory, state: g.state, dbg };
   });
   console.log(win);
   check('boss shield washable', win.shield <= 0);

@@ -4,27 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grime Protocol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="hud" class="hidden">
-  <div id="scope" class="hidden"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
+  <div id="scope" class="hidden"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div></div>
   <div id="vignette"></div>
   <div id="hurtDir"></div>
+  <div id="dmgNums"></div>
   <div id="crosshair"><i class="ch t"></i><i class="ch b"></i><i class="ch l"></i><i class="ch r"></i><i class="dot"></i></div>
   <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
 
-  <div id="objective">
-    <div id="objTitle">Phase 1 — Loading Bay</div>
+  <div id="objective" class="glass">
+    <div class="obj-head"><span id="objPhase">PHASE 1</span><span id="zoneName"></span></div>
+    <div id="objTitle">Loading Bay</div>
     <div id="objBrief"></div>
-    <div class="bar big"><div id="cleanFill"></div><span id="cleanText">0%</span></div>
+    <div class="prog"><div class="bar"><div id="cleanFill"></div></div><span id="cleanText">0%</span></div>
     <div id="objCounts"></div>
-    <div id="zoneName"></div>
   </div>
 
-  <canvas id="minimap" width="220" height="220"></canvas>
+  <div id="mapWrap"><canvas id="minimap" width="360" height="360"></canvas><div id="mapZone"></div></div>
 
   <div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
   <div id="prompt"></div>
@@ -33,21 +36,23 @@
 
   <div id="bl">
     <div id="perks"></div>
-    <div id="credits">¢ 0</div>
+    <div id="creditsRow"><span class="cr-icon">¢</span><span id="credits">0</span></div>
     <div id="popups"></div>
-    <div class="bar hp"><div id="hpFill"></div><span id="hpText">100</span></div>
+    <div class="hpRow glass"><span class="hp-icon">✚</span><div class="bar hp"><div id="hpFill"></div></div><span id="hpText">100</span></div>
   </div>
 
   <div id="br">
-    <div id="meters">
+    <div id="meters" class="glass">
       <div class="meter"><label>TANK</label><div class="bar"><div id="tankFill"></div></div><span id="tankText"></span></div>
-      <div class="meter" id="waterM"><label>WATER</label><div class="bar"><div id="waterFill"></div></div><span id="waterText"></span></div>
+      <div class="meter" id="waterM"><label>H₂O</label><div class="bar"><div id="waterFill"></div></div><span id="waterText"></span></div>
       <div class="meter" id="fuelM"><label>FUEL</label><div class="bar"><div id="fuelFill"></div></div><span id="fuelText"></span></div>
     </div>
-    <div id="slots"></div>
-    <div id="weaponName"></div>
-    <div id="ammo"><span id="mag">12</span><span id="reserve">/ 84</span></div>
-    <div id="grenades"></div>
+    <div id="weaponCard" class="glass">
+      <div id="weaponName"></div>
+      <div id="ammo"><span id="mag">12</span><span id="reserve">/ 84</span></div>
+      <div id="slots"></div>
+      <div id="grenades"></div>
+    </div>
   </div>
   <div id="fps"></div>
 </div>
@@ -117,6 +122,7 @@
     <div class="setting"><label>Mouse sensitivity <span id="sensVal"></span></label><input type="range" id="sens" min="0.2" max="3" step="0.05"></div>
     <div class="setting"><label>Field of view <span id="fovVal"></span></label><input type="range" id="fov" min="70" max="110" step="1"></div>
     <div class="setting"><label>Volume <span id="volVal"></span></label><input type="range" id="vol" min="0" max="1" step="0.05"></div>
+    <div class="setting"><label>Graphics quality</label><select id="quality"><option value="high">High (bloom, post-processing)</option><option value="low">Performance</option></select></div>
     <div class="setting"><label><input type="checkbox" id="invert"> Invert mouse Y</label></div>
     <div class="setting"><label><input type="checkbox" id="showFps"> Show FPS</label></div>
     <div class="buttons"><button class="btnBack">Back</button></div>

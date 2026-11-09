@@ -180,6 +180,7 @@ export class Player {
     this.pos.x = nx; this.pos.z = nz;
     // boss & enemy pushout
     g.enemies.pushPlayer(this);
+    g.barrels.push(this.pos, R);
 
     this.vel.y -= GRAV * dt;
     this.pos.y += this.vel.y * dt;

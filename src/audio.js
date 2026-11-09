@@ -109,5 +109,19 @@ export class Audio {
       delete this.loops[name];
     }
   }
+  wind(gust) {
+    if (!this.ctx) return;
+    if (!this.windNode) {
+      const c = this.ctx;
+      const src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = 0.6;
+      const g = c.createGain(); g.gain.value = 0.0001;
+      src.connect(f); f.connect(g); g.connect(this.master); src.start();
+      this.windNode = { g, f };
+    }
+    const t = this.ctx.currentTime;
+    this.windNode.g.gain.setTargetAtTime(0.015 + gust * 0.09, t, 0.3);
+    this.windNode.f.frequency.setTargetAtTime(300 + gust * 500, t, 0.3);
+  }
   stopLoops() { for (const k of Object.keys(this.loops)) this.loop(k, false); }
 }

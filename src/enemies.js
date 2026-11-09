@@ -35,8 +35,16 @@ export class Enemies {
     this.spawnTimer = 3;
     this.flowTimer = 0;
     this.surgeTimer = 100; this.surgeActive = 0;
+    const lumpy = new THREE.SphereGeometry(1, 28, 20);
+    const pa = lumpy.attributes.position;
+    for (let i = 0; i < pa.count; i++) {
+      const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i);
+      const n = 1 + 0.07 * Math.sin(x * 7.1 + y * 3.3) * Math.cos(z * 6.2 - y * 2.1) + 0.04 * Math.sin(y * 13 + x * 5);
+      pa.setXYZ(i, x * n, y * n, z * n);
+    }
+    lumpy.computeVertexNormals();
     this.geo = {
-      body: new THREE.SphereGeometry(1, 14, 10),
+      body: lumpy,
       eye: new THREE.SphereGeometry(1, 8, 6),
       arm: new THREE.CylinderGeometry(0.5, 0.3, 1, 8),
       glob: new THREE.SphereGeometry(0.16, 8, 6),
@@ -50,8 +58,8 @@ export class Enemies {
   makeMesh(type) {
     const d = ENEMIES[type];
     const g = new THREE.Group();
-    const mat = new THREE.MeshLambertMaterial({ color: d.color, emissive: 0x000000 });
-    const eyeMat = this.eyeMats[type] ||= new THREE.MeshBasicMaterial({ color: d.eye });
+    const mat = new THREE.MeshStandardMaterial({ color: d.color, emissive: 0x000000, roughness: 0.22, metalness: 0.05 });
+    const eyeMat = this.eyeMats[type] ||= new THREE.MeshBasicMaterial({ color: new THREE.Color(d.eye).multiplyScalar(2.6) });
     const H = d.height;
     const body = new THREE.Mesh(this.geo.body, mat);
     const parts = { mat };
@@ -66,7 +74,7 @@ export class Enemies {
       for (const s of [-1, 1]) { const e = new THREE.Mesh(this.geo.eye, eyeMat); e.scale.setScalar(0.07); e.position.set(s * 0.13, 2.3, 0.55); g.add(e); }
     } else if (type === 'spitter') {
       body.scale.set(0.4, 0.75, 0.4); body.position.y = 0.95;
-      const sac = new THREE.Mesh(this.geo.body, new THREE.MeshLambertMaterial({ color: 0x9cff6a, emissive: 0x3a7a10 })); sac.scale.set(0.32, 0.28, 0.32); sac.position.set(0, 1.55, -0.12); g.add(sac);
+      const sac = new THREE.Mesh(this.geo.body, new THREE.MeshStandardMaterial({ color: 0x9cff6a, emissive: 0x4aaa10, emissiveIntensity: 1.3, roughness: 0.15, transparent: true, opacity: 0.9 })); sac.scale.set(0.32, 0.28, 0.32); sac.position.set(0, 1.55, -0.12); g.add(sac);
       parts.sac = sac;
       const head = new THREE.Mesh(this.geo.body, mat); head.scale.set(0.22, 0.24, 0.26); head.position.set(0, 1.72, 0.12); g.add(head);
       parts.head = head;
@@ -257,6 +265,7 @@ export class Enemies {
       // boss pushout
       e.pos.x = nx; e.pos.z = nz;
       if (this.boss && this.boss.alive) this.pushFromBoss(e.pos, e.d.radius);
+      g.barrels.push(e.pos, e.d.radius * 0.8);
       const gy = L.groundAt(e.pos.x, e.pos.z, e.d.radius * 0.5, e.pos.y + 0.9);
       e.pos.y += (gy - e.pos.y) * Math.min(1, dt * (gy > e.pos.y ? 8 : 12));
 
@@ -403,7 +412,16 @@ export class Enemies {
     if (e.dying > 0 || e.hp <= 0) return;
     if (g.powerups.insta > 0 && info.kind !== 'water') dmg = e.hp + 1;
     e.hp -= dmg;
-    if (!info.silent) {
+    if (info.silent) {
+      e.dotAcc = (e.dotAcc || 0) + dmg;
+      if (g.time - (e.dotShown || 0) > 0.35 && e.dotAcc >= 1) {
+        e.dotShown = g.time;
+        g.ui.damageNumber(e.pos.x, e.pos.y + e.d.height + 0.2, e.pos.z, e.dotAcc, info.kind === 'fire' ? 'fire' : 'water');
+        e.dotAcc = 0;
+      }
+    } else {
+      const pt = info.point || new THREE.Vector3(e.pos.x, e.pos.y + e.d.height * 0.7, e.pos.z);
+      g.ui.damageNumber(pt.x, pt.y + 0.2, pt.z, dmg, info.head ? 'head' : info.kind === 'melee' ? 'melee' : e.hp <= 0 ? 'kill' : 'normal');
       e.flash = 0.08; e.parts.mat.emissive.setHex(0x884444);
       if (info.point) g.particles.goo(info.point.x, info.point.y, info.point.z, e.d.color, info.head ? 10 : 5, 3);
       g.audio.hit();
@@ -539,6 +557,7 @@ export class Enemies {
     else if (point) g.particles.goo(point.x, point.y, point.z, 0xd04aa0, 6, 3);
     if (g.powerups.insta > 0) real *= 2;
     b.hp -= real; b.flash = 0.06;
+    if (point) g.ui.damageNumber(point.x, point.y + 0.3, point.z, real, b.shield > 0 ? 'shield' : 'normal');
     if (kind === 'bullet' && g.time - (b.lastCredit || 0) > 0.08) { b.lastCredit = g.time; g.addCredits(ECON.hit, null, true); }
     g.ui.hitmarker(false, false);
     if (b.hp <= 0) this.killBoss();
@@ -555,6 +574,9 @@ export class Enemies {
     const g = this.game, b = this.boss;
     b.alive = false; b.hp = 0;
     g.particles.burst(b.x, 2.2, b.z, 0xd04aa0, 200, 14, 0.3);
+    g.effects.explosion(b.x, 2.2, b.z, 7, 'fire');
+    setTimeout(() => g.effects.explosion(b.x + 2, 1.5, b.z - 1, 4, 'fire'), 250);
+    setTimeout(() => g.effects.explosion(b.x - 2, 2.5, b.z + 1, 5, 'fire'), 500);
     g.particles.goo(b.x, 2.2, b.z, 0x6aff3a, 80, 10);
     g.audio.boom();
     g.scene.remove(b.grp);
