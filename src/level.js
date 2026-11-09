@@ -202,8 +202,8 @@ export class Level {
       const i = this.idx(x, y);
       if (this.type[i] !== 1 && (x % 3 === 1) && (y % 3 === 1)) lights.push([x, y]);
     }
-    const panelGeo = new THREE.BoxGeometry(1.2, 0.06, 0.5);
-    const panelMat = new THREE.MeshBasicMaterial({ color: 0xfff6dd });
+    const panelGeo = new THREE.BoxGeometry(0.9, 0.05, 0.32);
+    const panelMat = new THREE.MeshBasicMaterial({ color: 0xe8e2d0 });
     const panels = new THREE.InstancedMesh(panelGeo, panelMat, lights.length);
     const m = new THREE.Matrix4();
     lights.forEach(([x, y], n) => { const [cx, cz] = this.center(x, y); m.makeTranslation(cx, WALL_H - 0.03, cz); panels.setMatrixAt(n, m); });
@@ -500,7 +500,7 @@ export class Level {
   // ---------------------------------------------------------- flow field toward player
   passableForEnemy(i) {
     const t = this.type[i];
-    return t === 0 || t === 2 || t === 3;
+    return t === 0 || t === 2;
   }
 
   computeFlow(px, pz) {

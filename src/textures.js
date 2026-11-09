@@ -37,8 +37,8 @@ export function floorTexture(kind, seed = 1) {
   } else if (kind === 'bay') {
     g.fillStyle = '#6b6457'; g.fillRect(0, 0, 256, 256);
     noise(g, 256, 256, 6000, rng, 0.08);
-    g.fillStyle = 'rgba(40,36,30,0.25)';
-    for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(rng() * 256, rng() * 256, 10 + rng() * 30, 0, 7); g.fill(); }
+    g.fillStyle = 'rgba(40,36,30,0.09)';
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(rng() * 256, rng() * 256, 10 + rng() * 30, 0, 7); g.fill(); }
     g.strokeStyle = '#4b463d'; g.lineWidth = 3; g.strokeRect(0, 0, 256, 256);
   } else if (kind === 'office') {
     g.fillStyle = '#3e4a5c'; g.fillRect(0, 0, 256, 256);
