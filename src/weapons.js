@@ -39,6 +39,16 @@ export class Weapons {
     this.shots = 0; this.animFlags = {};
     this.flashLight = new THREE.PointLight(0xffb060, 0, 9, 1.6);
     game.scene.add(this.flashLight);
+    // visible water jet + suction cone (world space)
+    const jetGeo = new THREE.CylinderGeometry(0.015, 0.075, 1, 10, 1, true); jetGeo.translate(0, 0.5, 0);
+    const stripes = document.createElement('canvas'); stripes.width = 64; stripes.height = 256;
+    { const c2 = stripes.getContext('2d'); for (let y = 0; y < 256; y += 4) { c2.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.75})`; c2.fillRect(0, y, 64, 2 + Math.random() * 3); } }
+    this.streamTex = new THREE.CanvasTexture(stripes); this.streamTex.wrapS = this.streamTex.wrapT = THREE.RepeatWrapping;
+    this.jet = new THREE.Mesh(jetGeo, new THREE.MeshBasicMaterial({ map: this.streamTex, color: new THREE.Color(0.7, 1.3, 2.2), transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    this.jet.visible = false; this.jet.frustumCulled = false; game.scene.add(this.jet);
+    const coneGeo = new THREE.CylinderGeometry(1, 0.06, 1, 20, 1, true); coneGeo.translate(0, 0.5, 0);
+    this.suction = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({ map: this.streamTex, color: new THREE.Color(0.9, 0.85, 0.7), transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    this.suction.visible = false; this.suction.frustumCulled = false; game.scene.add(this.suction);
     this.vmFlashLight = new THREE.PointLight(0xffb060, 0, 2, 1.5);
     this.vmScene.add(this.vmFlashLight);
     this.models = {};
@@ -389,6 +399,14 @@ export class Weapons {
       const rate = 16 * suction * this.cleanMul();
       const res = g.grime.vacuum(zones, eye.x, eye.y, eye.z, fwd.x, fwd.y, fwd.z, range, Math.cos(0.42), rate * dt, cap - this.tank, g.level, (pile) => { g.audio.pickup(); g.stats.piles++; void pile; });
       this.tank += res.collected;
+      {
+        const tip = nozzle.clone().addScaledVector(fwd, range);
+        const dir = fwd.clone(); void tip;
+        this.suction.position.copy(nozzle); this.suction.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.clone().negate());
+        const rr = range * Math.tan(0.42);
+        this.suction.scale.set(rr, range, rr); this.suction.visible = true; this.suctionT = 0.05;
+        this.streamTex.offset.y += 0.05; this.suction.rotation.y += 0.0;
+      }
       for (const [, pile] of res.hits.slice(0, 6)) {
         if (Math.random() < 0.7) g.particles.suck(pile.x + (Math.random() - 0.5) * 0.5, 0.15, pile.z + (Math.random() - 0.5) * 0.5, nozzle.x, nozzle.y, nozzle.z);
       }
@@ -407,6 +425,13 @@ export class Weapons {
       const pressure = UPGRADES.pressure.values[g.upg.pressure];
       const w = g.level.raycast(eye.x, eye.y, eye.z, fwd.x, fwd.y, fwd.z, 10);
       for (let i = 0; i < 4; i++) g.particles.water(nozzle.x, nozzle.y, nozzle.z, fwd.x, fwd.y, fwd.z, 0.08 + pressure * 0.02);
+      {
+        const end = eye.clone().addScaledVector(fwd, Math.min(w.dist, 10));
+        const dir = end.clone().sub(nozzle); const len = dir.length(); dir.normalize();
+        this.jet.position.copy(nozzle); this.jet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        this.jet.scale.set(0.8 + pressure * 0.2, len, 0.8 + pressure * 0.2); this.jet.visible = true; this.jetT = 0.05;
+        this.streamTex.offset.y -= 0.12;
+      }
       if (w.dist < 10) {
         if (Math.random() < 0.6) g.particles.mist(w.x + w.nx * 0.1, w.y + w.ny * 0.1, w.z + w.nz * 0.1);
         const radius = 0.55 + Math.sqrt(pressure) * 0.35;
@@ -499,6 +524,8 @@ export class Weapons {
     this.kickRot = damp(this.kickRot, 0, 12, dt);
     if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0 && m && m.userData.flash) m.userData.flash.visible = false; }
     this.flashLight.intensity = Math.max(0, this.flashLight.intensity - dt * 400);
+    if ((this.jetT -= dt) <= 0) this.jet.visible = false;
+    if ((this.suctionT -= dt) <= 0) this.suction.visible = false;
     this.vmFlashLight.intensity = Math.max(0, this.vmFlashLight.intensity - dt * 60);
     this.casings.update(dt);
 

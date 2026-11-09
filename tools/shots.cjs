@@ -71,6 +71,16 @@ const out = process.argv[2] || 'screenshots/tmp'; fs.mkdirSync(out, { recursive:
     for (let p = 2; p <= 4; p++) g.level.openDoor(p, true); g.phase = 4; g.enemies.createBoss(); g.enemies.awakenBoss();
     const b = g.enemies.boss; b.hp = b.maxHp * 0.45; P.spawnAt(b.x + 3, b.z + 12, 0.25); P.pitch = 0.0; b.summonT = 99; b.volleyT = 99;
     for (let k = 0; k < 162; k++) g.step(1 / 60); };
+  scen.washing = () => { const g = window.GAME, P = g.player, W = g.weapons; g.enemies.clearAll(); g.enemies.spawnTimer = 999;
+    g.level.openDoor(2, true); g.phase = 2; W.tools.washer = true; W.water = 100;
+    const [x, z] = g.level.center(35, 20); P.spawnAt(x, z, Math.PI * 0.5); P.pitch = -0.35; W.switchTo('washer');
+    for (let k = 0; k < 30; k++) g.step(1 / 60);
+    for (let k = 0; k < 40; k++) { g.input.mouse[0] = true; g.step(1 / 60); } };
+  scen.vacuuming = () => { const g = window.GAME, P = g.player, W = g.weapons; g.enemies.clearAll(); g.enemies.spawnTimer = 999;
+    const pile = g.grime.zones.a.piles.find(p => !p.done && !g.level.blockedCircle(p.x - 2.2, p.z, 0.4, 0));
+    P.spawnAt(pile.x - 2.2, pile.z, -Math.PI / 2); P.pitch = -0.5; W.switchTo('vacuum');
+    for (let k = 0; k < 30; k++) g.step(1 / 60);
+    for (let k = 0; k < 14; k++) { g.input.mouse[0] = true; g.step(1 / 60); } };
   const which = (process.argv[3] || Object.keys(scen).join(',')).split(',');
   for (const n of which) {
     await page.evaluate(`(${scen[n].toString()})()`);
