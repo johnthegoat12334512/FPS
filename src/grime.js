@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from './rng.js';
 import { stainTexture } from './textures.js';
+import { mergeStatic } from './merge.js';
 import { CELL, WALL_H, ZONE_KEYS } from './level.js';
 
 // Per zone counts: [debris piles, floor stains, wall stains, spores]
@@ -127,6 +128,7 @@ export class Grime {
           grp.add(nd);
         }
       }
+      mergeStatic(grp);
       this.group.add(grp);
       const spore = { id: s, x: bx, y: 0.35, z: bz, hp: 60, max: 60, mesh: grp, done: false, phase: rng() * 6.28 };
       Z.spores.push(spore);

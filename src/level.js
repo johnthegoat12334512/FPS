@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { floorTexture, wallTexture, labelTexture, wallbuyTexture, normalFromTexture } from './textures.js';
 import { GUNS, PERKS } from './data.js';
+import { mergeStatic } from './merge.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export const CELL = 2;
@@ -295,6 +296,7 @@ export class Level {
       grp.rotation.y = Math.atan2(face[0], face[1]);
       if (o.kind === 'P') { o.perk = this.perkOrder[perkN++]; }
       this._buildObject(o, grp);
+      mergeStatic(grp, [o.anim, o.anim2, o.beam].filter(Boolean));
       this.group.add(grp);
       o.group = grp;
     }
@@ -307,7 +309,7 @@ export class Level {
     const cy = (r, h, mat, x = 0, y = 0, z = 0, seg = 24, r2) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r2 ?? r, h, seg), mat); m.position.set(x, y, z); grp.add(m); return m; };
     const screen = (tex, w, h, y, z, x = 0) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.3, 1.3, 1.3) })); s.position.set(x, y, z); grp.add(s); return s; };
     const dark = std(0x1a1d22, 0.7, 0.35), steel = std(0x8a929c, 0.9, 0.25), panel = std(0x2c323a, 0.75, 0.35);
-    const light = (color, inten, y, z) => { const l = new THREE.PointLight(color, inten, 4.5, 1.6); l.position.set(0, y, z); grp.add(l); return l; };
+    const light = () => null; // per-object lights removed for performance (emissive + bloom instead)
     if (o.kind === 'S') { // supply terminal
       rb(1.7, 1.0, 1.0, panel, 0, 0.5, 0, 0.06);
       rb(1.75, 0.08, 1.05, dark, 0, 1.02, 0, 0.03);

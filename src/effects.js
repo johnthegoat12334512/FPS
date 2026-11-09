@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CELL } from './level.js';
 import { mulberry32 } from './rng.js';
+import { mergeStatic } from './merge.js';
 
 function radialTex(stops, size = 128, noiseAmt = 0) {
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -195,6 +196,7 @@ export class Ambience {
           p.add(leaf);
         }
         if (rng() < 0.4) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bulbMat); b.position.y = h + 0.05; p.add(b); }
+        mergeStatic(p);
         L.group.add(p);
         this.plants.push({ p, ph: rng() * 6.28, k: 0.6 + rng() * 0.5 });
       }
@@ -287,6 +289,7 @@ export class Barrels {
         const top = new THREE.Mesh(lid, topMat); top.position.y = 1.06; grp.add(top);
         for (const ry of [0.05, 0.5, 1.0]) { const r = new THREE.Mesh(rimGeo, rimMat); r.rotation.x = Math.PI / 2; r.position.y = ry; grp.add(r); }
         grp.rotation.y = rng() * 6;
+        mergeStatic(grp);
         L.group.add(grp);
         this.list.push({ x: ox, z: oz, hp: 35, mesh: grp, alive: true, fuse: -1, zone: zk });
         placed++;

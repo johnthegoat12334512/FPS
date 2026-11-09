@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ENEMIES, PHASES, ECON } from './data.js';
 import { CELL, ZONE_KEYS } from './level.js';
 import { clamp } from './rng.js';
+import { mergeStatic } from './merge.js';
 
 const tmpV = new THREE.Vector3();
 
@@ -92,6 +93,7 @@ export class Enemies {
     g.add(body);
     parts.body = body;
     this.addDetails(type, g, mat, parts);
+    mergeStatic(g, [body, parts.head, parts.sac, ...(parts.arms || [])].filter(Boolean));
     void H;
     return { g, parts };
   }
