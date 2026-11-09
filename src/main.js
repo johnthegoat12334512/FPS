@@ -48,6 +48,8 @@ class Game {
     this.powerups = { double: 0, insta: 0 };
     this.stats = { kills: 0, piles: 0, stains: 0, spores: 0, units: 0, deaths: 0, earned: 0, time: 0, armor: 0 };
     this.god = false;
+    this.tips = {};
+    this.tipCheckT = 4;
 
     this.audio = new Audio();
     this.audio.setVolume(this.settings.vol);
@@ -206,6 +208,26 @@ class Game {
     else if (kind === 'double') this.powerups.double = 30;
     else if (kind === 'insta') this.powerups.insta = 30;
     else if (kind === 'purge') { this.enemies.purgeAll(); this.addCredits(400, null, false, 'PURGE'); }
+  }
+
+  // ---------------------------------------------------------------- one-time contextual tips
+  showTip(id, html, dur) { if (this.tips[id] || this.ui.tipT > 0) return false; this.tips[id] = 1; this.ui.tip(html, dur); return true; }
+  checkTips(dt) {
+    this.tipCheckT -= dt;
+    if (this.tipCheckT > 0) return;
+    this.tipCheckT = 1;
+    const W = this.weapons, P = this.player, here = this.level.zoneAtWorld(P.pos.x, P.pos.z);
+    const enemyNear = this.enemies.list.some(e => e.dying <= 0 && Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z) < 14);
+    if (this.stats.time > 3) this.showTip('start', 'Head east into the <b>Loading Bay</b>. Switch to the <b>Vacuum [4]</b> and hold <b>LMB</b> on debris piles.');
+    if (W.tank > W.tankCap() * 0.6) this.showTip('tank', 'Tank filling up! Empty it at a green <b>Disposal Chute</b> (green squares on the minimap) for credits.');
+    if (enemyNear) this.showTip('enemy', 'Sludge creatures! Shoot them (<b>LMB</b>, aim with <b>RMB</b>) or quick-knife with <b>V</b>. Kills pay credits.');
+    if (this.stats.time > 70) this.showTip('slide', 'Movement: <b>Shift</b> to sprint, <b>C</b> while sprinting to <b>slide</b>, <b>Space</b> mid-slide to slide-jump.');
+    if (this.credits >= 750 && !W.tools.washer && this.stats.time > 30) this.showTip('shop', 'You can afford upgrades — visit the <b>Supply Terminal</b> in HQ. Perk machines line the south wall.');
+    if (this.phase >= 2 && !W.tools.washer) this.showTip('washer', 'Phase 2 needs the <b>Hydro Lance</b> — buy it at the Supply Terminal, then wash stains with <b>[5]</b>.');
+    if (this.phase >= 3 && !W.tools.torch) this.showTip('torch', 'Spore pods only burn — buy the <b>Spore Torch</b> at the Supply Terminal and use <b>[6]</b>.');
+    if (here && here !== 'h' && this.barrels.list.some(b => b.alive && Math.hypot(b.x - P.pos.x, b.z - P.pos.z) < 8)) this.showTip('barrel', 'Green <b>Volatile Sludge barrels</b> explode when shot — lure creatures close, then pop it.');
+    if (W.grenades > 0 && this.stats.time > 120) this.showTip('grenade', 'Press <b>G</b> to throw a <b>Foam Grenade</b>: it cleans a whole area and blasts creatures.');
+    if (this.enemies.list.some(e => e.type === 'bloater' && e.dying <= 0 && Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z) < 16)) this.showTip('bloater', '<b>Bloater</b> incoming — pop it from range, it explodes!');
   }
 
   // ---------------------------------------------------------------- interactables
@@ -481,7 +503,7 @@ class Game {
     if (!this.started) return;
     const data = {
       v: 1, phase: this.phase, victory: this.victory, bossAwake: this.bossAwake, credits: this.credits, difficulty: this.difficulty,
-      upg: this.upg, perks: this.perks, stats: this.stats, weapons: this.weapons.serialize(), grime: this.grime.serialize(),
+      upg: this.upg, perks: this.perks, stats: this.stats, tips: this.tips, weapons: this.weapons.serialize(), grime: this.grime.serialize(),
     };
     store.set(SAVE_KEY, JSON.stringify(data));
   }
@@ -498,6 +520,7 @@ class Game {
       for (const k in this.upg) this.upg[k] = Math.max(0, Math.min(UPGRADES[k].costs.length, (d.upg && d.upg[k]) | 0));
       this.perks = {}; for (const k in PERKS) if (d.perks && d.perks[k]) this.perks[k] = true;
       Object.assign(this.stats, d.stats || {});
+      this.tips = d.tips && typeof d.tips === 'object' ? d.tips : {};
       this.stats.armor = UPGRADES.armor.values[this.upg.armor];
       this.weapons.deserialize(d.weapons);
       this.grime.deserialize(d.grime);
@@ -531,6 +554,7 @@ class Game {
       if (it && active && this.input.hit('KeyE')) this.interact(it);
       this.checkT -= dt;
       if (this.checkT <= 0) { this.checkT = 0.5; this.checkProgress(); }
+      this.checkTips(dt);
       this.autosaveT -= dt;
       if (this.autosaveT <= 0) { this.autosaveT = 30; this.save(); }
       this.ui.update(dt);

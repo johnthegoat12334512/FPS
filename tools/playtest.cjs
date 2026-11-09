@@ -250,7 +250,7 @@ const url = 'file://' + path.join(__dirname, '..', 'index.html');
     const Z = g.grime.zones.d; for (const s of Z.stains) { s.done = true; s.mesh.visible = false; } for (const s of Z.spores) { s.done = true; s.mesh.visible = false; } for (const p of Z.piles) { p.done = true; g.grime._updatePile(Z, p); }
     g.checkProgress();
     const b = g.enemies.boss;
-    P.spawnAt(b.x, b.z + 11, 0); P.pitch = 0.1;
+    P.spawnAt(b.x, b.z + 8, 0); P.pitch = 0.1;
     W.switchTo('washer'); W.water = 300;
     for (let k = 0; k < 90; k++) g.step(1 / 60);
     g.render();
@@ -266,7 +266,7 @@ const url = 'file://' + path.join(__dirname, '..', 'index.html');
     // wash shield then shoot
     i.mouse[0] = true;
     const aim = () => { const dx = b.x - P.pos.x, dz = b.z - P.pos.z, d = Math.hypot(dx, dz); P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(2.1 - P.pos.y - P.eye, d); P.recoilPitch = 0; };
-    for (let k = 0; k < 60 * 25 && b.shield > 0; k++) { aim(); W.water = 300; g.step(1 / 60); }
+    for (let k = 0; k < 60 * 25 && b.shield > 0; k++) { P.pos.x = b.x; P.pos.z = b.z + 8; aim(); W.water = 300; g.step(1 / 60); }
     const shield = b.shield;
     const dbg = { slot: W.slot, toolActive: W.toolActive, water: W.water, pos: [P.pos.x, P.pos.y, P.pos.z], b: [b.x, b.z], hp: P.hp, mantle: !!P.mantle, locked: g.input.isLocked(), state: g.state, sw: W.switching, melee: W.meleeT };
     i.mouse[0] = false;

@@ -87,6 +87,11 @@ export class UI {
       d.el.style.opacity = f > 0.6 ? (1 - f) / 0.4 : 1;
     }
   }
+  tip(html, dur = 7) {
+    document.getElementById('tipText').innerHTML = html;
+    document.getElementById('tip').classList.add('on');
+    this.tipT = dur;
+  }
   setPrompt(html) { if (this._prompt !== html) { this._prompt = html; this.el.prompt.innerHTML = html || ''; } }
 
   update(dt) {
@@ -94,6 +99,7 @@ export class UI {
     this.hitT -= dt; this.hurtT -= dt; this.flashT -= dt; this.bannerT -= dt;
     this.el.hitmarker.style.opacity = this.hitT > 0 ? 1 : 0;
     this.updateDamageNumbers(dt);
+    if (this.tipT > 0) { this.tipT -= dt; if (this.tipT <= 0) document.getElementById('tip').classList.remove('on'); }
     const needClick = g.state === 'playing' && !g.input.isLocked();
     if (needClick !== this._needClick) { this._needClick = needClick; document.getElementById('clickHint').classList.toggle('hidden', !needClick); }
     this.el.flash.style.opacity = this.flashT > 0 ? 1 : 0;
